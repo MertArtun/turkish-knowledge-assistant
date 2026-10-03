@@ -1,6 +1,6 @@
 # Proje spesifikasyonu
 
-Kurgu bir şirketin destek çalışanına, onaylı bilgi belgelerine dayanarak Türkçe cevap veren tek turlu, salt okunur API. Genel amaçlı chatbot, işlem platformu veya üretime hazır sistem değildir. Kararların gerekçeleri `docs/judgment.md` içindedir; burada yalnızca davranış ve sözleşme yer alır.
+Kurgu bir şirketin destek çalışanına, onaylı bilgi belgelerine dayanarak Türkçe cevap veren tek turlu, salt okunur API. Genel amaçlı chatbot, işlem platformu veya üretime hazır sistem değildir. Kararların gerekçeleri ve bilinen sınırlar `docs/decisions.md` içindedir; burada yalnızca davranış ve sözleşme yer alır.
 
 ## 1. İşveren gereksinimleri ve karşılanma yeri
 
@@ -15,7 +15,7 @@ Kurgu bir şirketin destek çalışanına, onaylı bilgi belgelerine dayanarak T
 | R7 | Normal, cevapsız ve çelişkili en az 10 soruyla değerlendirme | `eval/` — 18 soru |
 | R8 | Kaynak kod, README, örnek ortam değişkenleri | repo, `README.md`, `.env.example` |
 | R9 | Beklenen ve gerçek çıktıların karşılaştırılması | `eval/results/<run_id>/` |
-| R10 | Teknik tercihler, gerekçeler, bilinen sınırlar | `docs/judgment.md` |
+| R10 | Teknik tercihler, gerekçeler, bilinen sınırlar | `docs/decisions.md` |
 | R11 | API anahtarının kodda ve Git geçmişinde olmaması | `.gitignore`, `.env.example` boş anahtar, commit öncesi tarama |
 
 İşveren .NET ve FastAPI'yi **önermiştir**; ikisi de zorunlu değildir. Arayüz ve çok ajanlı yapı istenmemiştir.
@@ -66,7 +66,7 @@ Uygulama: `src/rag_service/app/documents.py::load_corpus`; sözdizimi `tests/tes
   - `content`: kaynaklarda `quote` olarak gösterilen birebir metin.
   - `content_hash`: içeriğin SHA-256 değeri.
 - Bir kuralın koşulu veya istisnası ayrı bölüme bölünmez. Başlık yolu embedding girdisine ve kaynak gösterimine taşınır.
-- Tokenizer sınırını (önek ve özel tokenlar dâhil) aşan bölüm sessizce kesilmez, açıklayıcı hata verir. Bu kontrol tokenizer'a ihtiyaç duyduğu için loader'da değil, aşama 3'te embedding girdisi kurulurken yapılır.
+- Tokenizer sınırını aşan bölüm sessizce kesilmez, açıklayıcı hata verir. Bu kontrol tokenizer gerektirdiği için loader'da değil, indeks yüklenirken yapılır (aşağıda).
 
 **Korpus düzeyindeki kontroller.** Belgeler arası kurallar:
 - Aynı `doc_id` iki dosyada olamaz.
@@ -75,7 +75,21 @@ Uygulama: `src/rag_service/app/documents.py::load_corpus`; sözdizimi `tests/tes
 - Aynı `(procedure_id, scope)` içindeki `approved` belgelerin `[valid_from, valid_to)` aralıkları kesişemez. Taslak ve geri çekilmiş belgeler bu kontrole girmez. Bitiş hariç olduğu için bir sürüm, öncekinin bittiği gün başlayabilir.
 
 Her ihlal, dosya adını (bölüm sözdiziminde satır numarasını da) içeren bir `CorpusError`'dır. İlk hatada durulur ve servis bu korpusla başlamaz.
-- Markdown tek doğruluk kaynağıdır; SQLite indeks türetilmiştir. Fingerprint: belge içeriği + metadata + bölümleme sürümü + embedding model/revision + ön işleme ayarları. Uyuşmazlıkta servis hazır olmadan indeksi atomik olarak yeniden üretir; yarım indeks servis edilmez. Embedding'ler pickle olmadan saklanır; boyut uyuşmazlığı, sıfır norm ve NaN reddedilir.
+
+**Embedding girdisi.** Uygulama: `src/rag_service/app/embeddings.py`.
+- Model `intfloat/multilingual-e5-small`, commit `614241f622f53c4eeff9890bdc4f31cfecc418b3`; modelin kendi `onnx/model.onnx` ve `onnx/tokenizer.json` dosyaları, ONNX Runtime, CPU.
+- Bölüm girdisi: `passage: ` + `heading_path` öğeleri ` > ` ile birleşik + satır sonu + birebir içerik. Sorgu girdisi: `query: ` + soru.
+- Vektör: gerçek tokenlar üzerinde mean pooling, ardından L2 normalizasyonu; 384 boyut, float32. Sıfır veya sonlu olmayan vektör `EmbeddingError`'dır.
+- Sınır 512 token; önek, başlık yolu ve özel tokenlar (`<s>`, `</s>`) dâhil sayılır, tokenizer kesme yapmaz. Sınırı aşan bölüm, `chunk_id` ve token sayısını içeren `CorpusError`'dır (`check_passage_lengths`). Sınırı aşan sorgu `EmbeddingError`'dır; sorgu da kesilmez.
+
+**İndeks.** Uygulama: `src/rag_service/app/index_store.py::load_or_build_index`. Markdown tek doğruluk kaynağıdır; SQLite indeks (`INDEX_PATH`) türetilmiştir.
+- Tablolar: `meta(key, value)` yalnızca `fingerprint` satırını, `chunks(position, chunk_id, embedding)` her bölümün vektörünü tutar. Vektör little-endian float32 bayttır; pickle kullanılmaz.
+- Fingerprint, şu bilgilerin SHA-256 özetidir: indeks biçim sürümü (`INDEX_FORMAT_VERSION`), `model@revision`, her belge için dosya adı ve metadata, her bölüm için `chunk_id` ve embedding girdisinin SHA-256 değeri. Belge sırası sonucu değiştirmez.
+- Her yüklemede sıra şöyledir: token sınırı kontrolü → fingerprint → kayıtlı indeksin doğrulanması.
+- Kayıtlı indeks yalnızca şu koşulların hepsi sağlanırsa kullanılır: fingerprint aynı, bölüm listesi ve sırası korpusla aynı, her vektör model boyutunda, NaN/sonsuz değer yok, norm 1 (±0,001).
+- Aksi hâlde (dosya yok, eski, okunamıyor veya geçersiz) neden loglanır ve indeks yeniden üretilir: yeni vektörler aynı kontrollerden geçer, geçici dosyaya yazılır, geri okunarak doğrulanır ve `os.replace` ile yerine konur. Yarım veya doğrulanmamış indeks hiçbir zaman servis edilmez.
+- Yeni üretilen vektörler geçersizse `IndexStoreError` verilir; eski dosya değişmeden kalır.
+- Çalışırken belge güncellemesi yoktur; belgeler değişince indeks bir sonraki yüklemede yeniden üretilir.
 
 ## 4. Sürüm seçimi
 
@@ -94,6 +108,14 @@ Uygulama: `src/rag_service/app/versioning.py`.
 - `select_versions(belgeler, scope, as_of)`: Korpustaki her prosedür için tek bir `VersionDecision` üretir (`procedure_id` anahtarlı). Belgeler `doc_id` sırasıyla işlenir; sonuç dosya veya girdi sırasına bağlı değildir. `selected`, tek geçerli belgedir; geçerli belge yoksa `null`. Geri kalan her belge `excluded` içinde tek bir nedenle `doc_id` sırasıyla yer alır.
 - Aynı tarihte birden çok geçerli sürüm görülürse (yükleme kontrolü atlanmışsa) seçim yapılmaz; `CorpusError` verilir.
 - Arama yalnızca `selected` belgelerin bölümlerinde yapılır. Cevaptaki `version_decisions` bu sözlükten, getirilen bölümlerin prosedürleri için seçilir (§5).
+
+**Arama.** Uygulama: `src/rag_service/app/retrieval.py::retrieve(index, query_vector, decisions, top_k, min_score)`.
+1. Adaylar yalnızca `decisions` içindeki `selected` belgelerin bölümleridir. Filtre skorlamadan ve top-k'dan **önce** uygulanır. Desteklenmeyen kapsamda hiçbir belge seçilmediği için sonuç boştur.
+2. Skor, sorgu vektörü ile bölüm vektörünün dot product'ıdır; vektörler normalize olduğu için cosine'a eşittir. Tam tarama yapılır.
+3. Sıralama skora göre azalan; eşit skorda `chunk_id` artan.
+4. `MIN_RETRIEVAL_SCORE` boşsa eşik yoktur; doluysa altındaki adaylar düşer. Ardından ilk `TOP_K` (varsayılan 4) döner.
+
+Skor bir güven değeri değildir ve cevapta yer almaz; yalnızca log ve ölçüm içindir. Eşiğin neden kapalı olduğu ve ölçüm `docs/decisions.md` K17'dedir.
 
 Dışlama nedenleri (`excluded[].reason`). Kontroller kural sırasıyla yapılır ve **ilk** başarısız kontrol nedeni belirler:
 
@@ -200,11 +222,11 @@ Skorlar, arama/üretim/toplam süreleri, prompt hash'i, model revision'ı ve cor
 
 ## 6. Yapılandırma
 
-İsimler `.env.example`, kod ve README'de birebir aynıdır. Python: `APP_MODE` (`evidence_only` varsayılan | `generative`), `OPENAI_API_KEY`, `OPENAI_MODEL`, `EMBEDDING_MODEL`, embedding revision (aşama 3'te doğrulanmış gerçek değerle eklenecek), `KNOWLEDGE_DIR`, `INDEX_PATH`, `MODEL_CACHE_DIR`, `TOP_K` (1–20, varsayılan 4), `MIN_RETRIEVAL_SCORE` (boş = kapalı; −1..1), `LLM_TIMEOUT_SECONDS` (0–120, varsayılan 25). .NET: `RAG_SERVICE_URL`, `RAG_TIMEOUT_SECONDS` (varsayılan 45). Geçersiz değer veya `APP_MODE=generative` + boş anahtar başlangıçta açık hata verir; hata mesajı değişken adını söyler, değerini asla yazmaz.
+İsimler `.env.example`, kod ve README'de birebir aynıdır. Python: `APP_MODE` (`evidence_only` varsayılan | `generative`), `OPENAI_API_KEY`, `OPENAI_MODEL`, `EMBEDDING_MODEL`, embedding revision (ortam değişkeni değil; `app/settings.py` içinde tam commit hash'i olarak sabit: `614241f622f53c4eeff9890bdc4f31cfecc418b3`; kısa hash veya dal adı reddedilir), `KNOWLEDGE_DIR`, `INDEX_PATH`, `MODEL_CACHE_DIR`, `TOP_K` (1–20, varsayılan 4), `MIN_RETRIEVAL_SCORE` (boş = kapalı; −1..1), `LLM_TIMEOUT_SECONDS` (0–120, varsayılan 25). .NET: `RAG_SERVICE_URL`, `RAG_TIMEOUT_SECONDS` (varsayılan 45). Geçersiz değer veya `APP_MODE=generative` + boş anahtar başlangıçta açık hata verir; hata mesajı değişken adını söyler, değerini asla yazmaz.
 
 ## 7. Değerlendirme beklentileri
 
-- `eval/questions.jsonl`: 18 soru (E01–E18); her kayıtta `id`, `category`, `request`, `expected_status`, `required_facts`, `forbidden_facts`, `expected_source_ids`, `rubric`. Varsayılan kapsam TR/B2B/MH-10, `as_of=2026-10-04` (E16: `2026-06-01`). Ayrıca 4 geliştirme sorusu; eşik/bölümleme kararları önce onlarda denenir.
+- `eval/questions.jsonl`: 18 soru (E01–E18); her kayıtta `id`, `category`, `request`, `expected_status`, `required_facts`, `forbidden_facts`, `expected_source_ids`, `rubric`. Varsayılan kapsam TR/B2B/MH-10, `as_of=2026-10-04` (E16: `2026-06-01`). Ayrıca 4 geliştirme sorusu (`eval/dev_questions.jsonl`: `id`, `category`, `request`, `expected_source_ids`); eşik/bölümleme kararları önce onlarda denenir (`src/rag_service/measure_retrieval.py`).
 - Runner dış .NET API'sini HTTP ile çağırır (timeout'lu); hatalı HTTP cevapları da gerçek çıktı olarak kaydedilir.
 - Çıktı: `eval/results/<run_id>/actual.jsonl`, makinece okunur kontroller, Markdown karşılaştırma raporu. Run metadata: gerçek çalıştırma zamanı, commit SHA + dirty bayrağı, readiness'tan alınan `run_metadata`, soru sayısı.
 - Ölçümler payda ve sayılarla: beklenen bölüm top-k'da mı, çok kaynaklı sorularda tüm gerekli bölümler, doğru sürüm, kaynak ID geçerliliği, beklenen durum, cevaplanabilir sorularda gereksiz ret, cevapsız sorularda uydurma. Tek bir başarı yüzdesi verilmez; metin eşitliği anlamsal doğruluk sayılmaz.
@@ -215,8 +237,8 @@ Skorlar, arama/üretim/toplam süreleri, prompt hash'i, model revision'ı ve cor
 
 - [x] `data/knowledge/` tam 10 dosya, metadata doğrulaması geçiyor.
 - [x] Sürüm seçimi sınır testleri (2026-06-30 / 2026-07-01 / 2026-10-04, taslak, withdrawn, gelecek sürüm, çakışma, bozuk supersedes) geçiyor.
-- [ ] Kapsam filtresi aramadan önce; DE isteğine TR fallback yok; eski belge daha yüksek skorlu olsa da kullanılmıyor.
-- [ ] Stale indeks (metadata değişimi, silinen belge, model revision değişimi) servis edilmiyor.
+- [x] Kapsam filtresi aramadan önce; DE isteğine TR fallback yok; eski belge daha yüksek skorlu olsa da kullanılmıyor (`retrieve` düzeyinde test edildi).
+- [x] Stale indeks (metadata değişimi, silinen belge, model revision değişimi) servis edilmiyor.
 - [ ] Uydurma/istekte verilmemiş kaynak ID'si, kaynaksız claim ve tutarsız partial reddediliyor.
 - [ ] Alıntı modunda LLM hiç çağrılmıyor; generative istek anahtarsız 503 dönüyor.
 - [ ] .NET: istek doğrulama, giden JSON + request ID, 400/413/503/504/502 eşlemesi, timeout/iptal, readiness testleri geçiyor.

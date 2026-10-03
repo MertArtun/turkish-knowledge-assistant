@@ -1,8 +1,9 @@
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
-from app.settings import ENV_TO_FIELD, ConfigError, load_settings
+from app.settings import ENV_TO_FIELD, ConfigError, Settings, load_settings
 
 FAKE_KEY = "test-key-value-that-must-never-be-echoed"
 
@@ -46,6 +47,17 @@ def test_environment_values_are_parsed():
     assert settings.min_retrieval_score == 0.35
     assert settings.llm_timeout_seconds == 10.5
     assert str(settings.knowledge_dir) == "/srv/knowledge"
+
+
+def test_embedding_revision_defaults_to_the_pinned_model_commit():
+    assert load_settings({}).embedding_revision == "614241f622f53c4eeff9890bdc4f31cfecc418b3"
+
+
+@pytest.mark.parametrize("value", ["main", "614241f", "614241F622F53C4EEFF9890BDC4F31CFECC418B3"])
+def test_embedding_revision_must_be_a_full_commit_hash(value):
+    # A branch name or short hash would let the model change underneath an unchanged config.
+    with pytest.raises(ValidationError, match="embedding_revision"):
+        Settings(embedding_revision=value)
 
 
 def test_generative_mode_without_key_is_a_config_error():

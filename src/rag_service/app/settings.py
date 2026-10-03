@@ -35,6 +35,12 @@ class Settings(BaseModel):
     openai_api_key: SecretStr | None = None
     openai_model: str = Field(default="gpt-4.1-mini-2025-04-14", min_length=1)
     embedding_model: str = Field(default="intfloat/multilingual-e5-small", min_length=1)
+    # Hugging Face commit of the model repo, checked against the HF API when it was pinned. A full
+    # hash (not a branch) keeps the model fixed and lets a cached copy load without the network.
+    # Pinned in code, not read from the environment: a new revision needs the model checks rerun.
+    embedding_revision: str = Field(
+        default="614241f622f53c4eeff9890bdc4f31cfecc418b3", pattern=r"^[0-9a-f]{40}$"
+    )
     # Relative paths resolve against the working directory; commands run from src/rag_service.
     knowledge_dir: Path = Path("../../data/knowledge")
     index_path: Path = Path("../../var/index.sqlite3")

@@ -26,6 +26,7 @@ def test_ready_is_503_until_index_and_embedding_exist():
     assert readiness.checks.embedding_model is False
     assert readiness.run_metadata.app_mode == "evidence_only"
     assert readiness.run_metadata.top_k == 5
+    assert readiness.run_metadata.embedding_revision == "614241f622f53c4eeff9890bdc4f31cfecc418b3"
 
 
 def test_ready_reports_generation_availability_without_leaking_the_key():

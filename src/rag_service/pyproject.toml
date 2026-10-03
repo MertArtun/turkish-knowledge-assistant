@@ -5,8 +5,12 @@ description = "Retrieval and grounded answering service for the fictional suppor
 requires-python = "==3.12.*"
 dependencies = [
     "fastapi>=0.142.2",
+    "huggingface-hub>=1.33.0",
+    "numpy>=2.5.3",
+    "onnxruntime>=1.30.0",
     "pydantic>=2.13.5",
     "pyyaml>=6.0.3",
+    "tokenizers>=0.23.2",
     "uvicorn>=0.54.0",
 ]
 
@@ -21,6 +25,9 @@ dev = [
 testpaths = ["tests"]
 # The service is an application, not an installed package; tests import `app` from here.
 pythonpath = ["."]
+# Default runs stay offline; real-model checks run explicitly with `uv run pytest -m model`.
+addopts = "-m 'not model'"
+markers = ["model: needs the real embedding model (downloaded once into MODEL_CACHE_DIR)"]
 
 [tool.ruff]
 line-length = 100

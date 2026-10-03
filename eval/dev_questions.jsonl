@@ -1,0 +1,4 @@
+{"id": "DEV01", "category": "normal", "request": {"question": "Müşteri hata ekranının fotoğrafını göndermek istiyor; göndermeden önce ne yapması gerekir?", "as_of": "2026-10-04"}, "expected_source_ids": ["D10#paylasim"]}
+{"id": "DEV02", "category": "normal", "request": {"question": "Parola sıfırlama bağlantısı görüşmede söylenen başka bir e-posta adresine gönderilebilir mi?", "as_of": "2026-10-04"}, "expected_source_ids": ["D09#eposta"]}
+{"id": "DEV03", "category": "version", "request": {"question": "Şubat ayında açılan bir iade talebinde iade kargosunun bedelini kim ödüyordu?", "as_of": "2026-02-16"}, "expected_source_ids": ["D03#kargo"]}
+{"id": "DEV04", "category": "unanswerable", "request": {"question": "MH-10 kulaklığın şarjı tam doluyken kaç saat kullanılabilir?", "as_of": "2026-10-04"}, "expected_source_ids": []}
