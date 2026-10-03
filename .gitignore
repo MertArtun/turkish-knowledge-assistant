@@ -1,0 +1,38 @@
+# Secrets: real env files and key material. Only the example file is tracked.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Derived data: SQLite index, embeddings and downloaded model weights live under var/.
+var/
+*.sqlite3
+*.sqlite
+*.db
+*.npy
+*.safetensors
+*.onnx
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# .NET
+bin/
+obj/
+TestResults/
+*.user
+.vs/
+
+# Private logs. Fictional eval reports under eval/results/ are tracked on purpose.
+*.log
+logs/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

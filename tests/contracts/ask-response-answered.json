@@ -1,0 +1,65 @@
+{
+  "request_id": "req-example-answered",
+  "status": "answered",
+  "mode": "generative",
+  "effective_as_of": "2026-10-04",
+  "effective_scope": {
+    "country": "TR",
+    "customer_type": "B2B",
+    "product": "MH-10"
+  },
+  "answer": "Şirket iade etiketi sağlar ve bu etiketle yapılan gönderimin bedelini karşılar.",
+  "claims": [
+    {
+      "text": "Şirket iade etiketi sağlar ve bu etiketle yapılan gönderimin bedelini karşılar.",
+      "source_chunk_ids": ["D04#kargo"]
+    }
+  ],
+  "sources": [
+    {
+      "chunk_id": "D04#kargo",
+      "doc_id": "D04",
+      "document_title": "MH-10 İade Prosedürü",
+      "version": "2.0",
+      "section_id": "kargo",
+      "heading_path": ["MH-10 İade Prosedürü", "İade kargosu"],
+      "quote": "Şirket, iade talebi onaylanan müşteriye bir iade etiketi sağlar. Bu etiketle yapılan gönderimin kargo bedelini şirket karşılar.",
+      "valid_from": "2026-07-01",
+      "valid_to": null
+    }
+  ],
+  "evidence": [],
+  "missing_topics": [],
+  "reason_code": null,
+  "version_decisions": [
+    {
+      "procedure_id": "returns",
+      "selected": {
+        "doc_id": "D04",
+        "version": "2.0",
+        "valid_from": "2026-07-01",
+        "valid_to": null
+      },
+      "excluded": [
+        {
+          "doc_id": "D03",
+          "version": "1.0",
+          "valid_from": "2026-01-01",
+          "valid_to": "2026-07-01",
+          "reason": "expired"
+        }
+      ]
+    },
+    {
+      "procedure_id": "refund-payment",
+      "selected": {
+        "doc_id": "D05",
+        "version": "1.0",
+        "valid_from": "2026-01-01",
+        "valid_to": null
+      },
+      "excluded": []
+    }
+  ],
+  "retrieved_chunk_ids": ["D04#kargo", "D04#sure", "D05#bedel"]
+}

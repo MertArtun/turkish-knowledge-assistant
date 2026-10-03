@@ -1,0 +1,40 @@
+{
+  "request_id": "req-example-insufficient",
+  "status": "insufficient_evidence",
+  "mode": "generative",
+  "effective_as_of": "2026-10-04",
+  "effective_scope": {
+    "country": "TR",
+    "customer_type": "B2B",
+    "product": "MH-10"
+  },
+  "answer": "Onaylı belgelerde bu soruyu yanıtlayacak bilgi bulunamadı.",
+  "claims": [],
+  "sources": [],
+  "evidence": [],
+  "missing_topics": ["MH-10 garanti süresi"],
+  "reason_code": "not_in_documents",
+  "version_decisions": [
+    {
+      "procedure_id": "mh10-setup",
+      "selected": {
+        "doc_id": "D01",
+        "version": "1.0",
+        "valid_from": "2026-01-01",
+        "valid_to": null
+      },
+      "excluded": []
+    },
+    {
+      "procedure_id": "audio-troubleshooting",
+      "selected": {
+        "doc_id": "D02",
+        "version": "1.0",
+        "valid_from": "2026-01-01",
+        "valid_to": null
+      },
+      "excluded": []
+    }
+  ],
+  "retrieved_chunk_ids": ["D01#baglanti", "D02#ses-yok"]
+}

@@ -1,0 +1,18 @@
+{
+  "status": "not_ready",
+  "checks": {
+    "corpus_index": false,
+    "embedding_model": false
+  },
+  "run_metadata": {
+    "app_mode": "evidence_only",
+    "generation_configured": false,
+    "llm_model": "gpt-4.1-mini-2025-04-14",
+    "embedding_model": "intfloat/multilingual-e5-small",
+    "embedding_revision": null,
+    "corpus_fingerprint": null,
+    "prompt_hash": null,
+    "top_k": 4,
+    "min_retrieval_score": null
+  }
+}

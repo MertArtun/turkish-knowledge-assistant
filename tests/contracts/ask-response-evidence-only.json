@@ -1,0 +1,71 @@
+{
+  "request_id": "req-example-evidence-only",
+  "status": "evidence_only",
+  "mode": "evidence_only",
+  "effective_as_of": "2026-10-04",
+  "effective_scope": {
+    "country": "TR",
+    "customer_type": "B2B",
+    "product": "MH-10"
+  },
+  "answer": null,
+  "claims": [],
+  "sources": [],
+  "evidence": [
+    {
+      "chunk_id": "D04#sure",
+      "doc_id": "D04",
+      "document_title": "MH-10 İade Prosedürü",
+      "version": "2.0",
+      "section_id": "sure",
+      "heading_path": ["MH-10 İade Prosedürü", "İade süresi"],
+      "quote": "İade talebi, ürünün tesliminden itibaren 30 takvim günü içinde açılabilir.",
+      "valid_from": "2026-07-01",
+      "valid_to": null
+    },
+    {
+      "chunk_id": "D05#bedel",
+      "doc_id": "D05",
+      "document_title": "İade Bedelinin Ödenmesi",
+      "version": "1.0",
+      "section_id": "bedel",
+      "heading_path": ["İade Bedelinin Ödenmesi", "Ödeme süresi"],
+      "quote": "İade bedeli, iadenin kabul edilmesinden sonra 5 iş günü içinde ödenir. Süre, ürünün kargoya verildiği tarihten başlamaz.",
+      "valid_from": "2026-01-01",
+      "valid_to": null
+    }
+  ],
+  "missing_topics": [],
+  "reason_code": null,
+  "version_decisions": [
+    {
+      "procedure_id": "returns",
+      "selected": {
+        "doc_id": "D04",
+        "version": "2.0",
+        "valid_from": "2026-07-01",
+        "valid_to": null
+      },
+      "excluded": [
+        {
+          "doc_id": "D03",
+          "version": "1.0",
+          "valid_from": "2026-01-01",
+          "valid_to": "2026-07-01",
+          "reason": "expired"
+        }
+      ]
+    },
+    {
+      "procedure_id": "refund-payment",
+      "selected": {
+        "doc_id": "D05",
+        "version": "1.0",
+        "valid_from": "2026-01-01",
+        "valid_to": null
+      },
+      "excluded": []
+    }
+  ],
+  "retrieved_chunk_ids": ["D04#sure", "D05#bedel"]
+}

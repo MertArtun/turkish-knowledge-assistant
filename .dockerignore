@@ -1,0 +1,16 @@
+# Allowlist: the build context only receives what the images need, so env files, private
+# notes, indexes and model weights cannot reach an image by accident.
+*
+!global.json
+!SupportAssistant.slnx
+!src/
+
+# Local environments and build outputs inside the allowed folders.
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+**/bin/
+**/obj/
+**/.env
+**/.env.*

@@ -1,0 +1,10 @@
+{
+  "question": "İade kargosunu kim ödüyor?",
+  "as_of": "2026-10-04",
+  "scope": {
+    "country": "TR",
+    "customer_type": "B2B",
+    "product": "MH-10"
+  },
+  "mode": "generative"
+}
