@@ -22,4 +22,10 @@
     <ProjectReference Include="..\..\src\SupportAssistant.Api\SupportAssistant.Api.csproj" />
   </ItemGroup>
 
+  <!-- Shared contract fixtures and the example environment are read by tests, never copied by hand. -->
+  <ItemGroup>
+    <None Include="..\contracts\*.json" LinkBase="contracts" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\.env.example" Link="env.example" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

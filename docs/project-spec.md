@@ -136,7 +136,7 @@ Serbest metinden tarih çıkarılmaz; soru başka bir tarihi soruyor ama istek o
 |---|---|---|
 | .NET (dış, `127.0.0.1:8080`) | `POST /api/ask` | Soru sorma |
 | .NET | `GET /health/live` | Süreç çalışıyor mu: `{"status":"live"}` |
-| .NET | `GET /health/ready` | Python readiness'ının kısa timeout ile alınan tipli kopyası (ham gövde aktarılmaz) |
+| .NET | `GET /health/ready` | Python readiness'ının tipli kopyası (3 sn timeout; ham gövde aktarılmaz). HTTP durumu gövdedeki `status`'tan gelir: `ready` 200, `not_ready` 503. Python'a ulaşılamazsa, süre dolarsa veya gövde bozuksa hata sözleşmesi döner: 503 `upstream_unavailable`, 504 `upstream_timeout`, 502 `upstream_invalid_response` |
 | Python (iç, `rag:8000`, host'a port açılmaz) | `POST /internal/ask`, `GET /health/live`, `GET /health/ready` | Aynı gövde şekilleri |
 
 JSON alanları snake_case; tarihler `YYYY-MM-DD`; boş değerler `null` veya `[]` olarak her zaman yazılır (alan atlanmaz).
@@ -145,12 +145,29 @@ JSON alanları snake_case; tarihler `YYYY-MM-DD`; boş değerler `null` veya `[]
 
 | Alan | Kural |
 |---|---|
-| `question` | Zorunlu. Trim sonrası boş olamaz, en fazla 2000 karakter. |
+| `question` | Zorunlu. Trim sonrası boş olamaz, en fazla 2000 karakter (Unicode kod noktası; iki serviste aynı sayım). Ayrıca embedding modelinin 512 token sınırına sığmalıdır (`query: ` öneki ve özel tokenlar dâhil). Sığmayan soru kesilmez; Python 400 `invalid_request` döner. Normal Türkçe metinde 2000 karakter yaklaşık 470 token tutar; emoji gibi karakterler sınırı daha kısa metinde aşabilir. |
 | `as_of` | Opsiyonel, yalnızca `YYYY-MM-DD`. Boşsa Europe/Istanbul'a göre bugün. |
-| `scope` | Opsiyonel; verilirse `country`, `customer_type`, `product` üçü de zorunlu. Varsayılan `TR` / `B2B` / `MH-10`. Desteklenmeyen kapsam 400 değil, `insufficient_evidence` + `unsupported_scope` üretir. Scope filtresi yetkilendirme değildir. |
+| `scope` | Opsiyonel; verilirse `country`, `customer_type`, `product` üçü de zorunlu, her biri 1–64 karakter (uzunluğu yalnızca Python denetler). Varsayılan `TR` / `B2B` / `MH-10`. Desteklenmeyen kapsam 400 değil, `insufficient_evidence` + `unsupported_scope` üretir. Scope filtresi yetkilendirme değildir. |
 | `mode` | Opsiyonel: `generative` veya `evidence_only`; boşsa `APP_MODE`. |
 
-Tanınmayan alan veya enum değeri 400 ile reddedilir. HTTP gövde sınırı 16 KiB (aşılırsa 413). Request ID `X-Request-ID` başlığıyla gelir; `^[A-Za-z0-9._-]{1,64}$` değilse veya yoksa .NET yenisini üretir ve Python'a aynı başlıkla taşır.
+Tanınmayan alan veya enum değeri 400 ile reddedilir. Alan adları ve enum değerleri büyük/küçük harfe duyarlıdır ve yalnızca tam yazımıyla kabul edilir (`Question`, `Generative`, `EVIDENCEONLY` reddedilir). HTTP gövde sınırı 16 KiB (aşılırsa 413).
+
+.NET, Python'a her zaman dört alanı yazar: trim edilmiş `question`; verilmemiş `as_of`, `scope` ve `mode` açıkça `null`. Varsayılanları yalnızca Python çözer.
+
+**Request ID.** `X-Request-ID` başlığıyla gelir. Tek değer değilse veya `^[A-Za-z0-9._-]{1,64}$` kalıbına (satır sonu dâhil hiçbir ek karakter olmadan) uymuyorsa .NET yenisini üretir ve Python'a aynı başlıkla taşır. Python aynı kuralla geçerli başlığı aynen kullanır, yoksa kendisi üretir (doğrudan çağrı). Python cevabındaki `request_id` gönderilenle aynı değilse .NET 502 `upstream_invalid_response` döner. `X-Request-ID` iki servisin her cevabında, sağlık uçları ve hatalar dâhil, döner.
+
+### İstek akışı (Python)
+
+Uygulama: `src/rag_service/app/service.py::Assistant.ask`. Sıra:
+
+1. `as_of`, `scope` ve `mode` çözülür (`mode` yoksa `APP_MODE`).
+2. `mode=generative` ise hiçbir iş yapılmadan 503 `generation_not_configured` döner. Üretim yolu henüz yoktur; istek alıntı moduna düşürülmez, sahte cevap üretilmez.
+3. Sürüm görünümü hesaplanır (§4). Hiçbir prosedürde seçili belge yoksa arama yapılmaz ve `insufficient_evidence` döner: tüm dışlama nedenleri `scope_mismatch` ise `reason_code=unsupported_scope`, değilse `no_valid_version`.
+4. Soru embedding'i ayrı bir thread'de, aynı anda tek çağrı olarak hesaplanır (event loop bloke olmaz). Token sınırı burada denetlenir.
+5. Arama yapılır (§4). Eşik tüm adayları elerse `insufficient_evidence` + `not_in_documents` döner (eşik kapalıyken bu olmaz).
+6. `evidence_only` cevabında `evidence`, sıralı top-k bölümlerdir; `quote` ve metadata yüklü korpustan gelir. `version_decisions` getirilen bölümlerin prosedürleri için, ilk görünme sırasıyladır. Eşik kapalı olduğu için belgelerde cevabı olmayan bir soruda da adaylar döner; adaylar cevap değildir.
+
+`insufficient_evidence` cevaplarında `evidence`, `retrieved_chunk_ids` ve `version_decisions` boştur; `answer` sunucunun yazdığı standart Türkçe açıklamadır.
 
 ### Başarılı cevap
 
@@ -184,13 +201,13 @@ Kaynak/evidence nesnesi: `chunk_id`, `doc_id`, `document_title`, `version`, `sec
 
 ### Hata cevabı
 
-`{"request_id": "...", "error": {"code": "...", "message": "..."}}`. `message` güvenli Türkçe metindir; ham exception, anahtar, dosya yolu veya kullanıcı sorusu içermez. .NET, Python'un hata gövdesini aktarmaz; bilinen kodu kendi mesajıyla eşler, bilinmeyen kodu `upstream_invalid_response` sayar.
+`{"request_id": "...", "error": {"code": "...", "message": "..."}}`. `message` güvenli Türkçe metindir; ham exception, anahtar, dosya yolu veya kullanıcı sorusu içermez. .NET, Python'un hata gövdesini aktarmaz; HTTP durumunu ve mesajı Python'un durum kodundan değil `error.code`'dan, kendi tablosundan belirler. Python'un üretebileceği kodlar yalnızca tabloda "Python" yazanlardır; Python'dan gelen başka bir kod (`payload_too_large`, `upstream_*` veya bilinmeyen) ya da sözleşmeye uymayan gövde .NET'te 502 `upstream_invalid_response` olur.
 
 | `error.code` | Üreten | HTTP | Ne zaman |
 |---|---|---|---|
-| `invalid_request` | .NET, Python | 400 | Şema/doğrulama hatası (Python'da FastAPI'nin varsayılan 422'si de 400'e çevrilir) |
+| `invalid_request` | .NET, Python | 400 | Şema/doğrulama hatası. Python'da FastAPI'nin varsayılan 422'si 400'e çevrilir; Python ayrıca token sınırını aşan soruyu bu kodla reddeder. .NET şemayı zaten denetlediği için Python'dan gelen `invalid_request`'i "soru veya kapsam sınırı aşıldı" mesajıyla döner |
 | `payload_too_large` | .NET | 413 | Gövde 16 KiB'den büyük |
-| `service_not_ready` | Python | 503 | İndeks veya embedding modeli hazır değil |
+| `service_not_ready` | Python | 503 | İndeks veya embedding modeli hazır değil. Şu an üretilmez: Python her şeyi bağlantı kabul etmeden önce yükler (Readiness) |
 | `generation_not_configured` | Python | 503 | `generative` istendi ama anahtar/yapılandırma yok (mock cevap yok, sessiz fallback yok) |
 | `provider_unavailable` | Python | 503 | Sağlayıcı isteği reddetti: kimlik doğrulama, kota, hız sınırı, model erişimi, ağ |
 | `generation_timeout` | Python | 504 | LLM çağrısı `LLM_TIMEOUT_SECONDS` içinde bitmedi |
@@ -205,9 +222,15 @@ Kaynak/evidence nesnesi: `chunk_id`, `doc_id`, `document_title`, `version`, `sec
 `GET /health/ready` → hazırsa 200, değilse 503; gövde her iki durumda aynı şekilde:
 `status` (`ready`|`not_ready`), `checks` (`corpus_index`, `embedding_model`), `run_metadata` (`app_mode`, `generation_configured`, `llm_model`, `embedding_model`, `embedding_revision`, `corpus_fingerprint`, `prompt_hash`, `top_k`, `min_retrieval_score`). Readiness hiçbir zaman ücretli LLM çağrısı yapmaz; `generation_configured=true` yalnızca anahtarın tanımlı olduğunu söyler, kotanın kullanılabilir olduğunu kanıtlamaz.
 
+Python servisi ayarları, korpusu, embedding modelini ve indeksi bağlantı kabul etmeden önce yükler ve doğrular (`app/main.py::create_app`). Herhangi biri başarısız olursa süreç hata koduyla durur. Bu yüzden Python'un servis ettiği readiness her zaman `ready`'dir; yükleme sürerken (ilk model indirmesi dâhil) port kapalıdır ve .NET 503 `upstream_unavailable` döner. `not_ready` gövdesi sözleşmede durur ama Python şu an bunu üretmez. `corpus_fingerprint` yüklenen indeksin fingerprint'idir; `prompt_hash` üretim yolu eklenene kadar `null`'dır.
+
 ### Cevapta olmayan, logda olan
 
-Skorlar, arama/üretim/toplam süreleri, prompt hash'i, model revision'ı ve corpus fingerprint'i her cevaba eklenmez; `request_id` ile JSON loglarında bulunur. Çalışma bazındaki sabit metadata readiness'tan alınır. Loglarda ham soru, cevap, belge gövdesi, auth başlığı ve anahtar yer almaz.
+Skorlar, arama/üretim/toplam süreleri, prompt hash'i, model revision'ı ve corpus fingerprint'i her cevaba eklenmez; `request_id` ile loglarda bulunur. Çalışma bazındaki sabit metadata readiness'tan alınır. Loglarda ham soru, cevap, belge gövdesi, auth başlığı ve anahtar yer almaz.
+
+Şu anki log satırları (düz metin; JSON log yapılandırması henüz yok):
+- Python, her `/internal/ask` için: `request_id`, mod, sonuç, getirilen chunk ID'leri ve skorları, embedding ve arama süresi (ms), fingerprint'in ilk 12 karakteri. Reddedilen istekte `request_id` ve hata kodu; geçersiz istekte yalnızca hatalı alanların adları.
+- .NET, her Python çağrısı için: `request_id`, Python'un HTTP durumu, süre (ms); hata eşlemesinde eşlenen kod; sözleşmeye uymayan cevapta yalnızca JSON yolu.
 
 ### Fixture'lar
 
@@ -222,7 +245,7 @@ Skorlar, arama/üretim/toplam süreleri, prompt hash'i, model revision'ı ve cor
 
 ## 6. Yapılandırma
 
-İsimler `.env.example`, kod ve README'de birebir aynıdır. Python: `APP_MODE` (`evidence_only` varsayılan | `generative`), `OPENAI_API_KEY`, `OPENAI_MODEL`, `EMBEDDING_MODEL`, embedding revision (ortam değişkeni değil; `app/settings.py` içinde tam commit hash'i olarak sabit: `614241f622f53c4eeff9890bdc4f31cfecc418b3`; kısa hash veya dal adı reddedilir), `KNOWLEDGE_DIR`, `INDEX_PATH`, `MODEL_CACHE_DIR`, `TOP_K` (1–20, varsayılan 4), `MIN_RETRIEVAL_SCORE` (boş = kapalı; −1..1), `LLM_TIMEOUT_SECONDS` (0–120, varsayılan 25). .NET: `RAG_SERVICE_URL`, `RAG_TIMEOUT_SECONDS` (varsayılan 45). Geçersiz değer veya `APP_MODE=generative` + boş anahtar başlangıçta açık hata verir; hata mesajı değişken adını söyler, değerini asla yazmaz.
+İsimler `.env.example`, kod ve README'de birebir aynıdır. Python: `APP_MODE` (`evidence_only` varsayılan | `generative`), `OPENAI_API_KEY`, `OPENAI_MODEL`, `EMBEDDING_MODEL`, embedding revision (ortam değişkeni değil; `app/settings.py` içinde tam commit hash'i olarak sabit: `614241f622f53c4eeff9890bdc4f31cfecc418b3`; kısa hash veya dal adı reddedilir), `KNOWLEDGE_DIR`, `INDEX_PATH`, `MODEL_CACHE_DIR`, `TOP_K` (1–20, varsayılan 4), `MIN_RETRIEVAL_SCORE` (boş = kapalı; −1..1), `LLM_TIMEOUT_SECONDS` (0–120, varsayılan 25). .NET: `RAG_SERVICE_URL` (mutlak http/https adresi; boşsa `http://rag:8000`; yol kısmı kullanılmaz) ve `RAG_TIMEOUT_SECONDS` (0 < x ≤ 300, ondalık olabilir; boşsa 45). .NET `.env` dosyasını okumaz; yerelde bu değişkenler kabuktan verilir. Readiness çağrısının 3 sn timeout'u sabittir. Geçersiz değer veya `APP_MODE=generative` + boş anahtar başlangıçta açık hata verir; hata mesajı değişken adını söyler, değerini asla yazmaz. Boş değer iki serviste de "verilmemiş" sayılır.
 
 ## 7. Değerlendirme beklentileri
 
@@ -240,9 +263,9 @@ Skorlar, arama/üretim/toplam süreleri, prompt hash'i, model revision'ı ve cor
 - [x] Kapsam filtresi aramadan önce; DE isteğine TR fallback yok; eski belge daha yüksek skorlu olsa da kullanılmıyor (`retrieve` düzeyinde test edildi).
 - [x] Stale indeks (metadata değişimi, silinen belge, model revision değişimi) servis edilmiyor.
 - [ ] Uydurma/istekte verilmemiş kaynak ID'si, kaynaksız claim ve tutarsız partial reddediliyor.
-- [ ] Alıntı modunda LLM hiç çağrılmıyor; generative istek anahtarsız 503 dönüyor.
-- [ ] .NET: istek doğrulama, giden JSON + request ID, 400/413/503/504/502 eşlemesi, timeout/iptal, readiness testleri geçiyor.
-- [ ] Python ve C# fixture round-trip testleri geçiyor.
+- [x] Alıntı modunda LLM hiç çağrılmıyor; generative istek anahtarsız 503 dönüyor.
+- [x] .NET: istek doğrulama, giden JSON + request ID, 400/413/503/504/502 eşlemesi, timeout/iptal, readiness testleri geçiyor.
+- [x] Python ve C# fixture round-trip testleri geçiyor.
 - [ ] `pytest`, `ruff check`, `ruff format --check`, `dotnet build`, `dotnet test`, `dotnet format --verify-no-changes` gerçekten çalıştırıldı.
 - [ ] `docker compose up --build` ile anahtarsız alıntı modu çalışıyor.
 - [ ] Eval .NET üzerinden gerçekten koşuldu; sonuçlar ve metadata kayıtlı; insan incelemesi `pending`.

@@ -72,10 +72,60 @@ Her karar notu şu sırayı izler: **Seçim · Alternatif · Neden · Bedel · N
   - Geliştirme veya değerlendirme ölçümü beklenen bölümün ilk k dışında kaldığını gösterirse önce bölümleme ve girdi düzeltilir (ör. açıklayıcı bölümü zorunlu bölümle birleştirmek). Ölçüm ve değişiklik kaydedilir.
   - Eşik ancak cevaplanabilir ve cevapsız soruları ayıran, ölçülmüş bir değer bulunursa açılır.
 
+### K18 — .NET dış API: katı sözleşme, ince aktarım
+- **Seçim:**
+  - .NET yalnızca isteği doğrular, request ID'yi yönetir, Python'u tek typed `HttpClient` ile çağırır, süre ve iptali uygular, hataları eşler. RAG kuralları (varsayılan kapsam ve tarih, sürüm seçimi, token sınırı, kapsam alanlarının uzunluğu) .NET'te yoktur; verilmemiş alanlar Python'a `null` olarak gider.
+  - Gövde, Minimal API'nin `[FromBody]` bağlamasıyla değil handler içinde okunur. Bağlamanın kendi 400/413 cevabı hata sözleşmesine çevrilemiyor.
+  - Tek `JsonSerializerOptions` kullanılır: snake_case, bilinmeyen alan reddi, eksik veya `null` zorunlu alanda hata. Enum'lar için yalnızca tam adı kabul eden küçük bir converter yazıldı. Yerleşik `JsonStringEnumConverter`, `"Generative"`, `"EVIDENCEONLY"` ve `"generative, evidence_only"` değerlerini de kabul ediyordu; bu testte görüldü.
+  - Python cevabı C# tiplerine okunur ve yeniden yazılır; ham gövde aktarılmaz. Hangi durumun neyi taşıdığı yalnızca Python'da (`AskResponse`) denetlenir.
+- **Alternatif:** Minimal API bağlaması ve yerleşik converter; Python cevabını bayt olarak aktarmak; durum kurallarını C#'ta da denetlemek; varsayılanları .NET'te doldurmak.
+- **Neden:** Sözleşme kayması (yeni alan, yeni enum değeri, eksik alan) sessizce geçmez, 400 veya 502 olur. İç hata metni dışarı sızmaz. RAG kuralları tek yerde kalır.
+- **Bedel:** Python'a eklenen her alan C# tipine de eklenmeli (ortak fixture testi bunu zorlar); eklenene kadar .NET 502 döner. .NET logunda etkin kapsam ve tarih görünmez.
+- **Ne zaman değişir:** Sözleşme sık değişirse veya framework, bağlama hatalarının cevabını özelleştirmeye izin verirse.
+
+### K19 — Zaman aşımı, iptal ve hata eşleme
+- **Seçim:**
+  - `HttpClient.Timeout` sonsuzdur. Her çağrı, istemci bağlantısına (`RequestAborted`) bağlı bir `CancellationTokenSource` ve `CancelAfter` kullanır: `/api/ask` için `RAG_TIMEOUT_SECONDS` (45 sn), readiness için 3 sn. Otomatik retry yoktur.
+  - Hata eşlemesi kapalı bir tablodur (spec §5): HTTP durumu ve Türkçe mesaj `error.code`'dan, .NET'in tablosundan gelir. Python'dan gelen `invalid_request` ayrı bir mesajla döner, çünkü .NET şemayı zaten denetlemiştir ve geriye yalnızca token sınırı ile kapsam alan uzunluğu kalır.
+- **Alternatif:** `HttpClient.Timeout` veya Polly/resilience handler; Python'un HTTP durumunu ve mesajını aynen geçirmek.
+- **Neden:** İki uç farklı süre ister. "Bizim süremiz doldu" (504) ile "istemci gitti" (cevap yazılmaz, iptal Python çağrısına taşınır) ayrımı açık kalır. Retry olmadığı için süre bütçesi katlanmaz: LLM için 25 sn, Python çağrısı için 45 sn.
+- **Bedel:** Ayrım elle yazılmış bir `when` filtresine dayanır; logdaki "timeout" ve "iptal" sınıflandırması testle doğrulanmıyor. Python'un özgün hata mesajı istemciye ulaşmaz; teşhis Python logundan `request_id` ile yapılır. Yeni bir hata kodu spec, Python ve C#'ta birlikte eklenmelidir.
+- **Ne zaman değişir:** Retry gerekirse; o zaman toplam süre bütçesi yeniden hesaplanır.
+
+### K20 — Tek request ID, iki serviste aynı kural
+- **Seçim:** Kural spec §5'tedir. .NET değeri `TraceIdentifier`'a yazar, cevap başlığını `OnStarting`'de ekler (hata yakalayıcı başlıkları temizlese de kalır). Python aynı kuralla gelen değeri aynen kullanır. .NET, Python cevabındaki `request_id`'nin gönderilenle aynı olduğunu denetler. Desen iki dilde de tam eşleşmeyle uygulanır (`\z`, `fullmatch`).
+- **Alternatif:** Başlığı olduğu gibi kullanmak; ID'yi yalnızca .NET'te üretip Python'da hiç doğrulamamak; W3C `traceparent`.
+- **Neden:** İki servisin loglarını birleştiren tek anahtar budur. Doğrulanmamış başlık log enjeksiyonuna yol açar. Düz `$`, sondaki satır sonunu kabul eder; bu tuzak .NET ve Python'da aynıdır.
+- **Bedel:** Desen iki dilde ayrı yazılıdır. Python başlığı aynen kullanmazsa her cevap 502 olur.
+- **Ne zaman değişir:** Dağıtık izleme (OpenTelemetry) eklenirse.
+
+### K21 — Python başlangıcı: önce yükle, sonra dinle
+- **Seçim:** `create_app`, ayarları, korpusu, embedding modelini ve indeksi bağlantı kabul etmeden önce yükler ve doğrular. Geçersiz korpus, indirilemeyen model veya kullanılamaz indeks süreci durdurur. Servis edilen readiness her zaman `ready`'dir.
+- **Alternatif:** Yüklemeyi arka planda yapmak ve bu sürede `/health/ready`'de `not_ready`, `/internal/ask`'te `service_not_ready` dönmek.
+- **Neden:** Yarım yüklü servis hiç istek almaz; "hazır değil" durumu kodda değil süreç durumunda tutulur. Arka plan yüklemesinde, başarısız yüklemeden sonra süreci durdurmak için ayrı bir mekanizma gerekirdi.
+- **Bedel:** İlk model indirmesi sürerken port kapalıdır: `/health/live` de cevap vermez, .NET 503 `upstream_unavailable` döner. `not_ready` ve `service_not_ready` sözleşmede duruyor ama Python şu an bunları üretmiyor.
+- **Ne zaman değişir:** Konteyner ortamı yükleme sürerken canlılık sinyali isterse yükleme arka plana alınır. İstemezse `not_ready` ve `service_not_ready` sözleşmeden çıkarılır.
+
+### K22 — Alıntı modu akışı ve sorgu embedding'inin çalıştırılması
+- **Seçim:**
+  - Kontrol sırası spec §5'teki "İstek akışı"dır. `generative` istek her işten önce reddedilir. Seçili belge yoksa embedding ve arama yapılmaz.
+  - `evidence`, sıralı top-k adaylardır. Alıntı ve metadata sunucunun yüklediği korpustan gelir. `answer=null`, `claims` ve `sources` boştur, yani adaylar cevap gibi sunulmaz.
+  - Soru embedding'i `anyio.to_thread.run_sync` ile ayrı bir thread'de, `CapacityLimiter(1)` ile aynı anda tek çağrı olarak çalışır.
+  - 512 tokenı aşan soru kesilmez, 400 `invalid_request` olur.
+- **Alternatif:** Senkron FastAPI ucu (ortak thread havuzu, 40 thread); `asyncio.to_thread` (event loop'un başka işlerle paylaşılan varsayılan havuzu); ayrı `ThreadPoolExecutor` (açma/kapama yönetimi gerekir); görev kuyruğu. Soruyu modelin sınırına kesmek.
+- **Neden:** Üretim yolu async istemci kullanacağı için uç async kalır; bloklayıcı iş tek yerde thread'e alınır. ONNX Runtime tek çağrıda zaten çekirdekleri kullanır, paralel çağrılar CPU'yu yalnızca paylaşırdı. Gerçek çalıştırmada sorgu embedding'i 4–5 ms sürdü (ilk çağrı 19 ms; Apple Silicon CPU), bu yüzden sırada beklemek ihmal edilebilir. Kesilmiş soru, sorulmamış bir sorunun adaylarını getirebilir.
+- **Bedel:**
+  - Eşik kapalı olduğu için cevabı belgelerde olmayan sorularda da 4 aday döner. Gerçek çalıştırmada garanti sorusu `D04#sure` dâhil 4 aday aldı. Adayları okuyan kişi bunların cevap olmadığını bilmelidir.
+  - `anyio` doğrudan bağımlılık olarak yazıldı; FastAPI onu zaten getiriyordu.
+- **Ne zaman değişir:** Yük ölçümü tek çağrılık sıranın darboğaz olduğunu gösterirse sınır artırılır.
+
 ## Bilinen sınırlar
 
 - **İlk indirme.** İlk başlangıç internet ister: model yaklaşık 470 MB, tokenizer yaklaşık 17 MB olarak `MODEL_CACHE_DIR` altına iner. Önbellek dolduktan sonra sabit commit sayesinde ağ isteği yapılmaz. Sıfırdan internetsiz kurulum desteklenmez.
 - **Revision kodda sabit.** Embedding revision'ı `app/settings.py` içinde tam commit hash'i olarak sabittir; ortam değişkeniyle değiştirilemez. `EMBEDDING_MODEL` değiştirilirse aynı commit o repoda bulunmaz ve başlangıç hata verir.
-- **Soru uzunluğu.** Sorgu da 512 token sınırına tabidir. Sınırı aşan soru kesilmez, `EmbeddingError` verir. 2.000 karakterlik soru sınırı, sorunun 512 tokenın altında kalacağını garanti etmez.
+- **Soru uzunluğu.** Sorgu da 512 token sınırına tabidir. Sınırı aşan soru kesilmez, 400 `invalid_request` olur. 2.000 karakterlik sınır bunu garanti etmez: normal Türkçe metinde 2.000 karakter yaklaşık 470 token tutarken 600 emoji sınırı aşıyor (gerçek tokenizer ile ölçüldü).
 - **Skorların taşınabilirliği.** Skorlar farklı CPU mimarilerinde son basamaklarda (yaklaşık 1e-6) farklı çıkabilir. Eşit skorda `chunk_id` sıralaması yalnızca birebir eşit skorlar için devreye girer.
 - **Küçük ölçüm.** Eşik kararı 4 geliştirme sorusuna dayanır; genellenebilir bir sonuç iddia edilmez.
+- **Tarihsel soruda zorunlu bölüm ilk 4'ün dışında kaldı.** `as_of=2026-06-01` ile "1 Haziran 2026'da iade süresi neydi?" sorusunda gerçek modelle `D03#sure` 5. sırada çıktı (0,8147). İlk 4: `D03#uygulama` 0,8241, `D05#bedel` 0,8230, `D05#kullanim` 0,8201, `D03#tarihler` 0,8187. Açıklayıcı bölümlerin zorunlu bölümü dışarı itme riski (K17) burada gerçekleşti. Bölümleme bu soruya göre ayarlanmadı; olası düzeltme önce geliştirme sorularında denenip ölçülecek.
+- **Üretim yolu henüz yok.** `generative` istek her durumda 503 `generation_not_configured` döner. Readiness'taki `generation_configured` yalnızca anahtarın tanımlı olduğunu gösterir.
+- **İptal Python'a ulaşmaz.** .NET'in süresi dolduğunda veya istemci koptuğunda .NET'ten Python'a giden çağrı iptal edilir, ama Python'daki istek kendi işini bitirene kadar çalışır. Alıntı modunda bu birkaç milisaniyedir.

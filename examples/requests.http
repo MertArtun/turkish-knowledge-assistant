@@ -1,0 +1,69 @@
+# Dış API örnekleri (VS Code REST Client veya JetBrains HTTP Client ile çalışır).
+# Sözleşme örnekleridir, değerlendirme çıktısı değildir. Alanlar ve hata kodları: docs/project-spec.md §5.
+# X-Request-ID isteğe bağlıdır; verilmezse API üretir ve cevap başlığında döner.
+
+@api = http://127.0.0.1:8080
+
+### Süreç çalışıyor mu
+GET {{api}}/health/live
+
+### Hazır mı; çalışma metadata'sı (mod, model revision'ı, corpus fingerprint, top_k)
+GET {{api}}/health/ready
+
+### Güncel sürüm: iade prosedüründe D04 seçilir, D03 "expired" olarak dışlanır
+POST {{api}}/api/ask
+Content-Type: application/json
+X-Request-ID: example-current-version
+
+{
+  "question": "İade kargosunu kim ödüyor?",
+  "as_of": "2026-10-04",
+  "scope": {"country": "TR", "customer_type": "B2B", "product": "MH-10"},
+  "mode": "evidence_only"
+}
+
+### Tarihsel sorgu: as_of 2026-06-01 olduğunda D03 seçilir, D04 "future_effective" olarak dışlanır
+POST {{api}}/api/ask
+Content-Type: application/json
+X-Request-ID: example-historical
+
+{
+  "question": "1 Haziran 2026'da iade süresi neydi?",
+  "as_of": "2026-06-01"
+}
+
+### Varsayılanlar: as_of = bugün (Europe/Istanbul), scope = TR/B2B/MH-10, mode = APP_MODE
+POST {{api}}/api/ask
+Content-Type: application/json
+
+{
+  "question": "Destek ekibine hangi saatlerde ulaşabilirim?"
+}
+
+### Desteklenmeyen kapsam: insufficient_evidence + unsupported_scope; TR belgelerine düşülmez
+POST {{api}}/api/ask
+Content-Type: application/json
+X-Request-ID: example-unsupported-scope
+
+{
+  "question": "Almanya'daki müşteriler de 30 günde iade edebilir mi?",
+  "scope": {"country": "DE", "customer_type": "B2B", "product": "MH-10"}
+}
+
+### Üretken mod henüz yok: 503 generation_not_configured (alıntı moduna sessizce düşülmez)
+POST {{api}}/api/ask
+Content-Type: application/json
+
+{
+  "question": "İade kargosunu kim ödüyor?",
+  "mode": "generative"
+}
+
+### Geçersiz enum yazımı: 400 invalid_request
+POST {{api}}/api/ask
+Content-Type: application/json
+
+{
+  "question": "İade kargosunu kim ödüyor?",
+  "mode": "Generative"
+}

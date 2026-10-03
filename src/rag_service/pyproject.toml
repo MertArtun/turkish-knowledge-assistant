@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Retrieval and grounded answering service for the fictional support assistant"
 requires-python = "==3.12.*"
 dependencies = [
+    "anyio>=4.15.1",
     "fastapi>=0.142.2",
     "huggingface-hub>=1.33.0",
     "numpy>=2.5.3",
