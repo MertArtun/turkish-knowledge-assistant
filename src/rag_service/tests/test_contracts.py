@@ -6,6 +6,8 @@ import pytest
 from pydantic import BaseModel, ValidationError
 
 from app.contracts import AskRequest, AskResponse, ErrorResponse, ReadinessResponse
+from app.documents import load_corpus
+from tests.corpus_files import KNOWLEDGE_DIR
 
 # Shared with the .NET tests; both sides must accept and re-serialize the same JSON.
 FIXTURE_DIR = Path(__file__).resolve().parents[3] / "tests" / "contracts"
@@ -19,6 +21,7 @@ FIXTURE_MODELS: dict[str, type[BaseModel]] = {
     "error-response.json": ErrorResponse,
     "readiness-not-ready.json": ReadinessResponse,
 }
+RESPONSE_FIXTURES = [name for name, model in FIXTURE_MODELS.items() if model is AskResponse]
 
 
 def load_fixture(name: str) -> dict:
@@ -126,3 +129,27 @@ def test_unknown_error_code_is_rejected():
 
     with pytest.raises(ValidationError):
         ErrorResponse.model_validate(raw)
+
+
+@pytest.mark.parametrize("name", RESPONSE_FIXTURES)
+def test_response_fixtures_cite_the_real_corpus_verbatim(name):
+    # Fixtures are examples, but their sources must still be real sections quoted exactly, so the
+    # contract examples never show a quote the service could not produce.
+    corpus = load_corpus(KNOWLEDGE_DIR)
+    documents = {doc.metadata.doc_id: doc for doc in corpus}
+    chunks = {chunk.chunk_id: chunk for doc in corpus for chunk in doc.chunks}
+    response = AskResponse.model_validate(load_fixture(name))
+
+    assert set(response.retrieved_chunk_ids) <= set(chunks)
+    for source in response.sources + response.evidence:
+        chunk = chunks[source.chunk_id]
+        metadata = documents[chunk.doc_id].metadata
+        assert (source.doc_id, source.section_id) == (chunk.doc_id, chunk.section_id)
+        assert source.quote == chunk.content
+        assert tuple(source.heading_path) == chunk.heading_path
+        assert source.document_title == metadata.title
+        assert (source.version, source.valid_from, source.valid_to) == (
+            metadata.version,
+            metadata.valid_from,
+            metadata.valid_to,
+        )

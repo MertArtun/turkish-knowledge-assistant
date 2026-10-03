@@ -24,7 +24,7 @@ Kurgu bir şirketin destek çalışanına, onaylı bilgi belgelerine dayanarak T
 
 ## 2. Korpus
 
-Şirket: **Yardım bende Destek Teknolojileri** (tamamen hayalî). Tüm süreler ve koşullar demo kurgusudur. Her belgenin kapsamı `country=TR`, `customer_type=B2B`, `product=MH-10`. Belge başına yaklaşık 120–250 kelime.
+Şirket: **Yardım bende Destek Teknolojileri** (tamamen hayalî). Tüm süreler ve koşullar demo kurgusudur; her dosyanın frontmatter'ı `# DEMO KURGUSU` YAML yorumuyla başlar. Her belgenin kapsamı `country=TR`, `customer_type=B2B`, `product=MH-10`. Belgeler kısadır; uzunluk için yeni iş kuralı eklenmez. Zorunlu bölümlerin yanında yalnızca konuyu açıklayan bölümler vardır (ör. `kullanim`; iade belgelerinde `uygulama` ve `tarihler`).
 
 | ID | Dosya | procedure_id | Zorunlu bölümler (section_id: içerik) | Sürüm / geçerlilik |
 |---|---|---|---|---|
@@ -45,12 +45,36 @@ Tüm belgeler `status=approved`; D04 dışında `supersedes=null`. İade belgele
 
 ## 3. Metadata ve bölümleme kuralları
 
-- Frontmatter (YAML, güvenli parser): `doc_id`, `procedure_id`, `title`, `version` (string), `valid_from`, `valid_to` (null olabilir), `status` (`approved` | `draft` | `withdrawn`), `scope` (`country`, `customer_type`, `product`), `supersedes` (null veya doc_id).
-- Bölüm ID'si başlıkta açıkça yazılır: `## İade süresi {#sure}`. ID `[a-z0-9-]+`; başlıktan otomatik transliterasyon yapılmaz. Kesin sözdizimi aşama 2'de loader testleriyle sabitlenir.
-- Bölüm alanları: `chunk_id` (`D04#sure` biçiminde, belge + bölüm ID'si), `doc_id`, `section_id`, `heading_path` (belge başlığı → bölüm başlığı), `content`, `content_hash`.
-- Bir kuralın koşulu/istisnası ayrı bölüme bölünmez. Başlık yolu embedding girdisine ve kaynak gösterimine taşınır. Tokenizer sınırını (önek ve özel tokenlar dâhil) aşan bölüm sessizce kesilmez; açıklayıcı yükleme hatası verir.
-- Yalnızca `data/knowledge/` altındaki beklenen `.md` dosyaları okunur; dizin dışına çıkan yol veya symlink reddedilir.
-- Yüklemede reddedilenler: eksik/zıt metadata, duplicate belge veya bölüm ID'si, boş içerik, geçersiz tarih aralığı, bilinmeyen status, var olmayan ya da farklı prosedür/kapsama işaret eden `supersedes`, döngüsel supersedes zinciri, onaylı sürümlerde tarih çakışması.
+Uygulama: `src/rag_service/app/documents.py::load_corpus`; sözdizimi `tests/test_documents.py` ile sabitlenmiştir.
+
+**Dosyalar.** Yalnızca `KNOWLEDGE_DIR`'in doğrudan altındaki `NN-slug.md` dosyaları okunur (ör. `04-returns-v2.md`). Bu kalıba uymayan `.md` dosyası (ör. `README.md`) yükleme hatasıdır: yanlış adlı belge sessizce kaybolmaz, not dosyası sessizce kaynağa dönüşmez. `.md` olmayan dosyalar ve alt dizinler hiç okunmaz. Symlink, dizin içini gösterse bile reddedilir; böylece dizin dışındaki hiçbir dosya okunamaz. Dosyalar UTF-8 olmalıdır.
+
+**Frontmatter.** Dosya `---` satırıyla başlar, YAML bloğu `---` ile kapanır ve `yaml.safe_load` ile okunur (Python nesnesi kuran YAML etiketleri hatadır). Alanlar: `doc_id`, `procedure_id`, `title`, `version`, `valid_from`, `valid_to`, `status`, `scope` (`country`, `customer_type`, `product`), `supersedes`.
+- Hepsi zorunludur. `valid_to` ve `supersedes` `null` olabilir ama yazılmaları gerekir. Bilinmeyen alan reddedilir.
+- Tipler katıdır: tarihler tırnaksız YAML tarihi (`2026-07-01`), `version` tırnaklı metindir (`"2.0"`).
+- `doc_id` `D` + iki rakamdır. `procedure_id` ve bölüm ID'leri `[a-z0-9]+(-[a-z0-9]+)*` kalıbına uyar.
+- `status`: `approved` | `draft` | `withdrawn`. `valid_to` verilmişse `valid_from`'dan sonra olmalıdır.
+
+**Gövde ve bölümler.** Gövde yalnızca bölümlerden oluşur. Bölüm başlığı satır başında tam olarak `## Başlık {#bolum-id}` biçimindedir: `##`, boşluk, başlık metni, boşluk, `{#id}`. ID başlıktan türetilmez; Türkçe karakter ve büyük harf içermez.
+- Belge başlığı gövdede yazılmaz; frontmatter'daki `title`'dan gelir.
+- Şunlar hatadır, çünkü aranamayacak veya atıf yapılamayacak metin ya da başlık yolunda görünmeyen bir başlık bırakırlar: başka her ATX başlığı (`#`, `###`, ID'siz veya girintili `##`) ve ilk bölümden önceki metin.
+- Bölüm içeriği, başlık satırından sonraki satırlardır. Baştaki ve sondaki boşluklar kırpılır; geri kalanı Unicode normalleştirmesi olmadan birebir saklanır. Boş bölüm ve aynı belgede tekrar eden bölüm ID'si hatadır.
+- Bölüm alanları:
+  - `chunk_id`: `D04#sure` biçiminde, belge ve bölüm ID'si.
+  - `doc_id`, `section_id`.
+  - `heading_path`: `[title, bölüm başlığı]`.
+  - `content`: kaynaklarda `quote` olarak gösterilen birebir metin.
+  - `content_hash`: içeriğin SHA-256 değeri.
+- Bir kuralın koşulu veya istisnası ayrı bölüme bölünmez. Başlık yolu embedding girdisine ve kaynak gösterimine taşınır.
+- Tokenizer sınırını (önek ve özel tokenlar dâhil) aşan bölüm sessizce kesilmez, açıklayıcı hata verir. Bu kontrol tokenizer'a ihtiyaç duyduğu için loader'da değil, aşama 3'te embedding girdisi kurulurken yapılır.
+
+**Korpus düzeyindeki kontroller.** Belgeler arası kurallar:
+- Aynı `doc_id` iki dosyada olamaz.
+- Aynı `(procedure_id, scope)` içinde aynı `version` iki belgede olamaz.
+- `supersedes` var olan bir belgeyi göstermeli; o belge aynı prosedürde ve aynı kapsamda olmalı. Zincir döngü içeremez; belgenin kendini göstermesi de döngüdür.
+- Aynı `(procedure_id, scope)` içindeki `approved` belgelerin `[valid_from, valid_to)` aralıkları kesişemez. Taslak ve geri çekilmiş belgeler bu kontrole girmez. Bitiş hariç olduğu için bir sürüm, öncekinin bittiği gün başlayabilir.
+
+Her ihlal, dosya adını (bölüm sözdiziminde satır numarasını da) içeren bir `CorpusError`'dır. İlk hatada durulur ve servis bu korpusla başlamaz.
 - Markdown tek doğruluk kaynağıdır; SQLite indeks türetilmiştir. Fingerprint: belge içeriği + metadata + bölümleme sürümü + embedding model/revision + ön işleme ayarları. Uyuşmazlıkta servis hazır olmadan indeksi atomik olarak yeniden üretir; yarım indeks servis edilmez. Embedding'ler pickle olmadan saklanır; boyut uyuşmazlığı, sıfır norm ve NaN reddedilir.
 
 ## 4. Sürüm seçimi
@@ -64,7 +88,23 @@ Tüm belgeler `status=approved`; D04 dışında `supersedes=null`. İade belgele
 
 Beklenen sınırlar: 2026-06-30 → D03; 2026-07-01 ve 2026-10-04 → D04. Geçerli sürüm olmayan tarihte başka tarihli belge seçilmez. Yeni onaylı v3 eklenirken önceki sürümün `valid_to` değeri v3'ün `valid_from` değerine çekilmelidir; açık uçlu önceki sürümle örtüşen v3 reddedilir. `supersedes` açıklayıcıdır, geçerlilik kurallarını geçersiz kılmaz.
 
-Dışlama nedenleri: `expired`, `future_effective`, `not_approved`, `scope_mismatch`. Serbest metinden tarih çıkarılmaz; soru başka bir tarihi soruyor ama istek o tarihe ayarlı değilse cevap `as_of_required` ile bunu belirtir.
+Uygulama: `src/rag_service/app/versioning.py`.
+- `effective_as_of(as_of, clock)`: İstekte `as_of` varsa onu kullanır. Yoksa enjekte edilen saatin anını Europe/Istanbul'a çevirip tarihini alır.
+- `effective_scope(scope)`: İstekte `scope` yoksa `TR`/`B2B`/`MH-10` kullanılır. Kapsam büyük/küçük harf dâhil birebir karşılaştırılır; normalleştirme veya fallback yoktur (`tr` ≠ `TR`).
+- `select_versions(belgeler, scope, as_of)`: Korpustaki her prosedür için tek bir `VersionDecision` üretir (`procedure_id` anahtarlı). Belgeler `doc_id` sırasıyla işlenir; sonuç dosya veya girdi sırasına bağlı değildir. `selected`, tek geçerli belgedir; geçerli belge yoksa `null`. Geri kalan her belge `excluded` içinde tek bir nedenle `doc_id` sırasıyla yer alır.
+- Aynı tarihte birden çok geçerli sürüm görülürse (yükleme kontrolü atlanmışsa) seçim yapılmaz; `CorpusError` verilir.
+- Arama yalnızca `selected` belgelerin bölümlerinde yapılır. Cevaptaki `version_decisions` bu sözlükten, getirilen bölümlerin prosedürleri için seçilir (§5).
+
+Dışlama nedenleri (`excluded[].reason`). Kontroller kural sırasıyla yapılır ve **ilk** başarısız kontrol nedeni belirler:
+
+| Sıra | Neden | Koşul |
+|---|---|---|
+| 1 | `scope_mismatch` | Belgenin kapsamı istek kapsamıyla birebir aynı değil |
+| 2 | `not_approved` | `status` `draft` veya `withdrawn` |
+| 3 | `future_effective` | `as_of < valid_from` |
+| 4 | `expired` | `valid_to` dolu ve `as_of >= valid_to` |
+
+Serbest metinden tarih çıkarılmaz; soru başka bir tarihi soruyor ama istek o tarihe ayarlı değilse cevap `as_of_required` ile bunu belirtir.
 
 ## 5. API sözleşmesi
 
@@ -173,8 +213,8 @@ Skorlar, arama/üretim/toplam süreleri, prompt hash'i, model revision'ı ve cor
 
 ## 8. Kabul kontrol listesi
 
-- [ ] `data/knowledge/` tam 10 dosya, metadata doğrulaması geçiyor.
-- [ ] Sürüm seçimi sınır testleri (2026-06-30 / 2026-07-01 / 2026-10-04, taslak, withdrawn, gelecek sürüm, çakışma, bozuk supersedes) geçiyor.
+- [x] `data/knowledge/` tam 10 dosya, metadata doğrulaması geçiyor.
+- [x] Sürüm seçimi sınır testleri (2026-06-30 / 2026-07-01 / 2026-10-04, taslak, withdrawn, gelecek sürüm, çakışma, bozuk supersedes) geçiyor.
 - [ ] Kapsam filtresi aramadan önce; DE isteğine TR fallback yok; eski belge daha yüksek skorlu olsa da kullanılmıyor.
 - [ ] Stale indeks (metadata değişimi, silinen belge, model revision değişimi) servis edilmiyor.
 - [ ] Uydurma/istekte verilmemiş kaynak ID'si, kaynaksız claim ve tutarsız partial reddediliyor.
