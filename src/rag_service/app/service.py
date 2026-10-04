@@ -29,6 +29,7 @@ from app.contracts import (
 from app.documents import Chunk, Document, load_corpus
 from app.embeddings import E5Embedder, Embedder, embed_query, query_text
 from app.generation import (
+    Generation,
     GenerationError,
     Generator,
     OpenAIGenerator,
@@ -100,6 +101,7 @@ class Assistant:
     prompt: SystemPrompt = field(default_factory=load_system_prompt)
 
     async def ask(self, request: AskRequest, request_id: str) -> AskResponse:
+        started = time.perf_counter()
         as_of = effective_as_of(request.as_of, self.clock)
         scope = effective_scope(request.scope)
         mode = request.mode or self.settings.app_mode
@@ -111,10 +113,10 @@ class Assistant:
         if not any(decision.selected for decision in decisions.values()):
             reason = _reason_without_valid_version(decisions)
             message = NO_DOCUMENTS_FOR_SCOPE if reason == "unsupported_scope" else NO_VALID_VERSION
-            self._log(request_id, mode, reason, [], embed_ms=0.0, search_ms=0.0)
+            self._log(request_id, mode, reason, [], started, embed_ms=0.0, search_ms=0.0)
             return _insufficient(request_id, mode, as_of, scope, reason, message)
 
-        started = time.perf_counter()
+        embedding_started = time.perf_counter()
         query_vector = await anyio.to_thread.run_sync(
             self._embed_question, request.question, limiter=self.embedding_slot
         )
@@ -127,20 +129,28 @@ class Assistant:
             min_score=self.settings.min_retrieval_score,
         )
         search_ms = (time.perf_counter() - embedded) * 1000
-        embed_ms = (embedded - started) * 1000
+        embed_ms = (embedded - embedding_started) * 1000
         if not results:
             # Only possible with MIN_RETRIEVAL_SCORE set: every candidate scored below it.
-            self._log(request_id, mode, "not_in_documents", [], embed_ms, search_ms)
+            self._log(request_id, mode, "not_in_documents", [], started, embed_ms, search_ms)
             return _insufficient(
                 request_id, mode, as_of, scope, "not_in_documents", NO_MATCHING_SECTION
             )
 
         if mode == "generative":
             return await self._generate(
-                request_id, request.question, as_of, scope, results, decisions, embed_ms, search_ms
+                request_id,
+                request.question,
+                as_of,
+                scope,
+                results,
+                decisions,
+                started,
+                embed_ms,
+                search_ms,
             )
 
-        self._log(request_id, mode, "evidence_only", results, embed_ms, search_ms)
+        self._log(request_id, mode, "evidence_only", results, started, embed_ms, search_ms)
         return AskResponse(
             request_id=request_id,
             status="evidence_only",
@@ -166,48 +176,58 @@ class Assistant:
         scope: Scope,
         results: list[ScoredChunk],
         decisions: dict[str, VersionDecision],
+        started: float,
         embed_ms: float,
         search_ms: float,
     ) -> AskResponse:
         # Only these sections reach the model: current versions, in this scope, at most four.
         provided = {r.chunk.chunk_id: r.chunk for r in results[:GENERATION_SECTION_LIMIT]}
         user_input = render_input(question, as_of, scope, list(provided.values()))
-        started = time.perf_counter()
+        prompt_id = f"{self.prompt.version}@{self.prompt.sha256[:12]}"
+        generation_started = time.perf_counter()
         try:
-            generation = await self.generator.generate(self.prompt.text, user_input)
+            generation = await self._call_model(user_input)
             validate_answer(generation.answer, provided)
         except GenerationError as error:
-            generate_ms = (time.perf_counter() - started) * 1000
-            self._log(request_id, "generative", error.code, results, embed_ms, search_ms)
+            self._log(request_id, "generative", error.code, results, started, embed_ms, search_ms)
+            # The detail names status codes, schema error types or source IDs; never the
+            # provider's message (it can echo part of the key) or the model's text.
             logger.info(
-                "generation request_id=%s outcome=%s detail=%s prompt=%s generate_ms=%.1f",
-                request_id,
-                error.code,
-                error.detail,
-                self.prompt.version,
-                generate_ms,
+                "generation",
+                extra={
+                    "fields": {
+                        "request_id": request_id,
+                        "outcome": error.code,
+                        "detail": error.detail,
+                        "prompt": prompt_id,
+                        "generate_ms": _milliseconds_since(generation_started),
+                    }
+                },
             )
             raise AskError(error.code, GENERATION_FAILED[error.code]) from None
-        generate_ms = (time.perf_counter() - started) * 1000
+        generate_ms = _milliseconds_since(generation_started)
 
         answer = generation.answer
         cited = list(dict.fromkeys(i for claim in answer.claims for i in claim.source_chunk_ids))
-        self._log(request_id, "generative", answer.status, results, embed_ms, search_ms)
+        self._log(request_id, "generative", answer.status, results, started, embed_ms, search_ms)
         logger.info(
-            "generation request_id=%s outcome=%s cited=%s reason=%s missing=%d model=%r "
-            "prompt=%s@%s generate_ms=%.1f input_tokens=%s output_tokens=%s reasoning_tokens=%s",
-            request_id,
-            answer.status,
-            ",".join(cited) or "-",
-            answer.reason_code,
-            len(answer.missing_topics),
-            generation.model,
-            self.prompt.version,
-            self.prompt.sha256[:12],
-            generate_ms,
-            generation.input_tokens,
-            generation.output_tokens,
-            generation.reasoning_tokens,
+            "generation",
+            extra={
+                "fields": {
+                    "request_id": request_id,
+                    "outcome": answer.status,
+                    "cited": cited,
+                    "reason_code": answer.reason_code,
+                    "missing_topics": len(answer.missing_topics),
+                    # As reported by the provider, which may differ from OPENAI_MODEL.
+                    "model": generation.model,
+                    "prompt": prompt_id,
+                    "generate_ms": generate_ms,
+                    "input_tokens": generation.input_tokens,
+                    "output_tokens": generation.output_tokens,
+                    "reasoning_tokens": generation.reasoning_tokens,
+                }
+            },
         )
         return AskResponse(
             request_id=request_id,
@@ -225,6 +245,18 @@ class Assistant:
             version_decisions=self._decisions_for(results, decisions),
             retrieved_chunk_ids=[result.chunk.chunk_id for result in results],
         )
+
+    async def _call_model(self, user_input: str) -> Generation:
+        # The SDK's timeout applies to each connect/read/write phase, so a slowly trickling reply
+        # could outlast it. This deadline bounds the whole call and keeps it well inside the .NET
+        # API's longer upstream timeout, so a slow model is reported as generation_timeout.
+        try:
+            with anyio.fail_after(self.settings.llm_timeout_seconds):
+                return await self.generator.generate(self.prompt.text, user_input)
+        except TimeoutError:
+            raise GenerationError(
+                "generation_timeout", "LLM_TIMEOUT_SECONDS passed for the whole call"
+            ) from None
 
     def _embed_question(self, question: str) -> np.ndarray:
         """Blocking; runs in a worker thread. A question is never truncated to fit the model."""
@@ -266,21 +298,32 @@ class Assistant:
         mode: Mode,
         outcome: str,
         results: list[ScoredChunk],
+        started: float,
         embed_ms: float,
         search_ms: float,
     ) -> None:
         # Scores and timings belong in logs, not in the response; the question text never does.
-        retrieved = ",".join(f"{r.chunk.chunk_id}:{r.score:.4f}" for r in results) or "-"
+        used = (self._document(result.chunk.doc_id).metadata for result in results)
         logger.info(
-            "ask request_id=%s mode=%s outcome=%s retrieved=%s embed_ms=%.1f search_ms=%.1f "
-            "corpus=%s",
-            request_id,
-            mode,
-            outcome,
-            retrieved,
-            embed_ms,
-            search_ms,
-            self.index.fingerprint[:12],
+            "ask",
+            extra={
+                "fields": {
+                    "request_id": request_id,
+                    "mode": mode,
+                    "outcome": outcome,
+                    "retrieved": [
+                        {"chunk_id": r.chunk.chunk_id, "score": round(r.score, 4)} for r in results
+                    ],
+                    # The document versions the retrieved sections come from.
+                    "versions": list(
+                        dict.fromkeys(f"{meta.doc_id}@{meta.version}" for meta in used)
+                    ),
+                    "embed_ms": round(embed_ms, 1),
+                    "search_ms": round(search_ms, 1),
+                    "total_ms": _milliseconds_since(started),
+                    "corpus": self.index.fingerprint[:12],
+                }
+            },
         )
 
 
@@ -298,6 +341,10 @@ def load_assistant(settings: Settings) -> Assistant:
     return Assistant(
         settings=settings, documents=documents, embedder=embedder, index=index, generator=generator
     )
+
+
+def _milliseconds_since(started: float) -> float:
+    return round((time.perf_counter() - started) * 1000, 1)
 
 
 def _reason_without_valid_version(decisions: dict[str, VersionDecision]) -> ReasonCode:

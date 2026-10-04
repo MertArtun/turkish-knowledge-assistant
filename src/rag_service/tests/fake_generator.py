@@ -5,6 +5,8 @@ service sent. It is a test tool only: it shows what the service does with a give
 not how a real model behaves (for example under prompt injection).
 """
 
+import anyio
+
 from app.generation import Generation, GenerationError, ModelAnswer
 
 
@@ -25,13 +27,20 @@ def model_answer(
 
 
 class FakeGenerator:
-    def __init__(self, answer: ModelAnswer | None = None, error: GenerationError | None = None):
+    def __init__(
+        self,
+        answer: ModelAnswer | None = None,
+        error: GenerationError | None = None,
+        delay_seconds: float = 0.0,
+    ):
         self.answer = answer
         self.error = error
+        self.delay_seconds = delay_seconds
         self.calls: list[tuple[str, str]] = []
 
     async def generate(self, instructions: str, user_input: str) -> Generation:
         self.calls.append((instructions, user_input))
+        await anyio.sleep(self.delay_seconds)
         if self.error is not None:
             raise self.error
         assert self.answer is not None, "give the fake an answer or an error"

@@ -72,7 +72,9 @@ def load_or_build_index(
     fingerprint = corpus_fingerprint(ordered, embedder.model_id)
     if index_path.exists():
         try:
-            return _read_index(index_path, fingerprint, chunks, embedder.dimension)
+            index = _read_index(index_path, fingerprint, chunks, embedder.dimension)
+            logger.info("reusing index %s: fingerprint %s matches", index_path, fingerprint[:12])
+            return index
         except IndexStoreError as error:
             logger.warning("rebuilding index %s: %s", index_path, error)
     else:

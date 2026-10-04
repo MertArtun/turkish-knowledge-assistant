@@ -105,6 +105,7 @@ Her karar notu şu sırayı izler: **Seçim · Alternatif · Neden · Bedel · N
 - **Neden:** Yarım yüklü servis hiç istek almaz; "hazır değil" durumu kodda değil süreç durumunda tutulur. Arka plan yüklemesinde, başarısız yüklemeden sonra süreci durdurmak için ayrı bir mekanizma gerekirdi.
 - **Bedel:** İlk model indirmesi sürerken port kapalıdır: `/health/live` de cevap vermez, .NET 503 `upstream_unavailable` döner. `not_ready` ve `service_not_ready` sözleşmede duruyor ama Python şu an bunları üretmiyor.
 - **Ne zaman değişir:** Konteyner ortamı yükleme sürerken canlılık sinyali isterse yükleme arka plana alınır. İstemezse `not_ready` ve `service_not_ready` sözleşmeden çıkarılır.
+- **Docker Compose'da (K26):** Sağlık kontrolü readiness'ı kullanır ve yükleme süresini `start_period` ile bekler. Yükleme sürerken canlılık sinyali gerekmedi, çünkü canlılığa bakıp konteyneri yeniden başlatan bir orkestratör yok.
 
 ### K22 — Alıntı modu akışı ve sorgu embedding'inin çalıştırılması
 - **Seçim:**
@@ -131,11 +132,13 @@ Her karar notu şu sırayı izler: **Seçim · Alternatif · Neden · Bedel · N
   - Model, OpenAI'ın model sayfasında Responses API ve yapılandırılmış çıktı desteğiyle listeleniyor. OpenRouter'ın public models API'si de OpenAI uç noktası için `structured_outputs`, `reasoning` ve `reasoning_effort` parametrelerini listeliyor.
   - Yönlendirme sabitlenmezse aynı model ID'si, sessizce başka bir altyapıya veya parametreyi yok sayan bir sağlayıcıya gidebilir.
   - Retry, 25 sn'lik bütçeyi ve maliyeti katlar; .NET'in 45 sn'lik üst süresi de aşılabilir.
+  - Model değişikliğinin gerekçesi maliyet ve güncelliktir. OpenRouter'ın public models API'sinde (2026-10-04) 1M giriş/çıkış token için `openai/gpt-6-luna` 0,10 / 0,50 USD, `openai/gpt-4.1-mini` 0,40 / 1,60 USD. Snapshot tarihleri 2026-09-22 ve 2025-04-14 (kalıcı slug'lar `openai/gpt-6-luna-20260922`, `openai/gpt-4.1-mini-2025-04-14`).
 - **Bedel:**
   - OpenRouter ek bir aracıdır ve kendi veri politikası vardır. `store=false`, OpenRouter'ın veya OpenAI'ın kendi saklama politikalarını ortadan kaldırmaz.
+  - Daha yeni model bu görevde daha iyi olduğu anlamına gelmez; kaliteyi yalnızca eval gösterir. Başlangıç modeli sabit bir snapshot olduğu için seçilmişti; sağlayıcının yanıtta yalnızca takma adı bildirmesi bu güvenceyi zayıflatır (aşağıda).
   - OpenAI'ın model sayfasında tarihli bir snapshot yok (`gpt-6-luna`). OpenRouter'da `openai/gpt-6-luna` takma adı ileride başka bir snapshot'a geçebilir. Sağlayıcının bildirdiği model her üretimin log satırına yazılır.
   - Reasoning tokenları çıktı bütçesinden yer. İlk üç canlı çağrıda (düşük effort) reasoning tokenı 0, çıktı 50–74 token, süre 1,3–2,8 sn oldu; 1000 token ve 25 sn bu sorularda geniş pay bırakıyor. Üç çağrı genelleme için yeterli değil; eval süreleri ve token sayılarını kaydedecek.
-  - SDK zaman aşımı aşama başınadır (bağlantı, okuma, yazma); toplam süre bunu biraz aşabilir. Dış sınır .NET'in 45 sn'sidir.
+  - SDK zaman aşımı aşama başınadır (bağlantı, okuma, yazma). Toplam süreyi K28'deki üst sınır keser.
 - **Ne zaman değişir:** Canlı ölçüm 1000 tokenın veya 25 sn'nin yetmediğini gösterirse değer gerekçesiyle değişir. Model değişirse ve yeni model reasoning modeli değilse `reasoning` parametresi kaldırılır.
 
 ### K24 — Modele giden veri: yalnızca JSON veri, sürümlü prompt dosyası
@@ -160,9 +163,66 @@ Her karar notu şu sırayı izler: **Seçim · Alternatif · Neden · Bedel · N
 - **Bedel:** Kaynak ID doğrulaması anlamsal doğruluk garantisi değildir: verilen bir bölüme atıf yapan yanlış bir claim (ör. "60 gün") geçer. Bu bilinçli olarak bir testle görünür tutuldu. Katı kurallar, canlı modelin küçük biçim hatalarında da 502 doğurur.
 - **Ne zaman değişir:** Eval, belirli bir kuralın doğru cevapları sistematik olarak reddettiğini gösterirse kural veya prompt, ölçülerek değişir.
 
+### K26 — Yerel çalıştırma: Compose, iki imaj, dışarıya yalnızca API
+- **Seçim:**
+  - `compose.yaml` iki servis tanımlar: `rag` ve `api`. Host'a yalnızca `api` açılır (`127.0.0.1:8080`). `rag` port yayımlamaz ve projenin bridge ağında kalır. Bu ağın dış bağlantısı açıktır: ilk model indirmesi ve LLM sağlayıcısı bunu kullanır.
+  - `rag` imajı `python:3.12.12-slim-trixie` üzerine kurulur. Bu, testlerin koştuğu ve `.python-version`'da yazan yorumlayıcıdır. Bağımlılıklar `uv sync --locked --no-dev` ile `uv.lock`'tan kurulur. uv (`ghcr.io/astral-sh/uv:0.9.2`) yalnızca bu adım için mount edilir, imaja girmez. İmaj yalnızca CPU kullanır: PyTorch veya CUDA paketi yoktur. Süreç `app` kullanıcısıyla (UID 10001) çalışır.
+  - `api` imajı iki aşamalıdır: `dotnet/sdk:10.0.102-noble` ile derlenir (`global.json`), `dotnet/aspnet:10.0.12-noble-chiseled` üzerinde çalışır. Chiseled imajda kabuk ve paket yöneticisi yoktur; süreç imajın kendi root olmayan kullanıcısıyla (UID 1654) çalışır.
+  - Dört etiket `docker manifest inspect` ile doğrulandı; hiçbiri `latest` değil.
+  - Belgeler `./data/knowledge:/knowledge:ro` olarak bağlanır. İndeks ve model önbelleği ayrı named volume'lerdedir: `rag-index`, `rag-models`. Mount noktaları imajda `app` kullanıcısına aittir; yeni bir volume bu sahiplikle başlar.
+  - `rag`'e yalnızca listelenen değişkenler (anahtar dâhil) kabuktan veya `.env`'den aktarılır. `api` yalnızca `RAG_SERVICE_URL=http://rag:8000` ve `RAG_TIMEOUT_SECONDS` alır. Konteyner yolları rag'in Dockerfile'ında sabittir; `.env`'deki yerel göreli yollar konteynere gitmez.
+  - Sağlık kontrolü yalnızca `rag`'dedir: Python'un `urllib`'i ile `/health/ready`, `start_period: 10m`, `start_interval: 5s`. `api`, `depends_on: service_healthy` ile `rag`'i bekler.
+- **Alternatif:**
+  - `env_file: .env`. Dosyadaki her şeyi aktarır: yerel göreli yolları ve .NET değişkenlerini de. Aynı satır `api`'ye de yazılırsa anahtar oraya da gider.
+  - `rag`'i `internal: true` bir ağa almak.
+  - `api` için Ubuntu tabanlı aspnet imajına curl kurup sağlık kontrolü yazmak.
+  - İmajları digest ile sabitlemek.
+  - Korpusu imaja kopyalamak.
+- **Neden:**
+  - Açık liste, hangi değişkenin hangi servise gittiğini compose dosyasında gösterir. Anahtar `api`'ye hiç ulaşmaz (çalışan konteynerde doğrulandı).
+  - `internal: true` dış bağlantıyı da keser; model indirilemez ve LLM çağrılamaz. Port yayımlamamak yeterlidir.
+  - Chiseled imajda kabuk olmadığı için `api`'ye Docker sağlık kontrolü yazılmadı. `api`'nin hazır olması `rag`'in hazır olmasına bağlıdır ve `rag`'in kontrolü bunu kapsar. Dışarıdan `GET /health/ready` aynı bilgiyi verir.
+  - Korpus imaja gömülmez, bağlanır. Böylece repodaki Markdown tek kaynak kalır ve belge değişikliği imaj yeniden derlenmeden `restart` ile indekse yansır (gerçek çalıştırmada denendi).
+- **Bedel:**
+  - Etiket sabittir ama içerik değişmez değildir: resmî imajlar aynı etiketi güvenlik güncellemeleriyle yeniden yayımlayabilir. Digest sabitlemesi yapılmadı.
+  - Python yama sürümü iki yerde birlikte güncellenmelidir: Dockerfile ve `.python-version`. 3.12.12, 3.12'nin en yeni yaması değildir (Docker Hub'da 3.12.15 var).
+  - `docker compose config` ve `docker inspect`, `.env`'den gelen anahtarı açık metin gösterir.
+  - Proje yolunda ASCII olmayan bir karakter varsa (bu repoda `ı`), Compose'un bake derlemesi gRPC başlık hatası verir; `COMPOSE_BAKE=false` gerekir (README, sorun giderme).
+- **Ne zaman değişir:** İmajlar bir kayıt deposuna gönderilip başka ortamlarda çalıştırılacaksa digest sabitlemesi ve düzenli güncelleme gelir. `api` için bir orkestratör sağlık kontrolü isterse küçük bir HTTP istemcisi olan imaja geçilir.
+
+### K27 — JSON loglar: ne yazılır, ne yazılmaz
+- **Seçim:**
+  - Python'da `app/logs.py::JsonFormatter`, uvicorn'a `--log-config log_config.json` ile verilir. uvicorn'un kendi satırları dâhil her kayıt tek satır JSON olur. İstek olaylarının alanları `extra={"fields": …}` ile verilir. Olaylar `ask`, `generation`, `refused` ve `invalid_request`'tir; alanları spec §5'te.
+  - Bir istisna türü ve yığın konumlarıyla yazılır, mesajı yazılmaz.
+  - .NET yerleşik JSON console formatter'ını kullanır (`appsettings.json`); ek kod yoktur. HttpClient fabrikasının çağrı başına dört satırı `Warning` seviyesine çekildi. `RagServiceClient`'ın satırı aynı bilgiyi request ID ile birlikte taşıyor.
+  - Gelen request ID kurala uymuyorsa iki serviste de loga hiç yazılmaz; onun yerine üretilen ID yazılır. JSON kaçışı ayrıca bir değerin yeni bir log satırı sahteleyememesini sağlar.
+- **Alternatif:**
+  - structlog veya python-json-logger.
+  - uvicorn'u Python kodundan başlatıp logging'i orada kurmak.
+  - .NET'te Serilog.
+  - Düz metin loglar.
+- **Neden:**
+  - Ek bağımlılık yoktur: formatter tek, küçük bir sınıftır ve uvicorn'un kendi seçeneğiyle bağlanır.
+  - Pydantic doğrulama hataları girdiyi mesajda tekrarlar (testte gösterildi). Cevap kurulurken beklenmeyen bir hata, cevap veya belge metnini istisna mesajıyla loga taşıyabilirdi.
+  - Her satırda `request_id` olduğu için iki servisin logu tek anahtarla birleşir.
+- **Bedel:**
+  - Beklenmeyen bir hatada istisna mesajı loga gelmez. Teşhis tür, yığın ve `request_id` ile yapılır; gerekirse hata yeniden üretilir.
+  - Her satır JSON değildir. Başlangıçta süreci durduran yapılandırma veya korpus hatası düz Python traceback'i olarak çıkar; bu bilerek bırakıldı, çünkü dosya ve alan adını söyleyen mesaj o anda gereklidir. Hugging Face kütüphanesi de kendi uyarılarını ikinci kez düz metin yazar (ilk indirmede bir satır).
+  - uvicorn'un erişim satırları request ID taşımaz. Sağlık kontrolü 30 saniyede bir erişim satırı üretir.
+- **Ne zaman değişir:** Bir log toplama sistemi eklenirse alan adları ona uyarlanır. Tam istisna mesajı gerekirse erişimi sınırlı ayrı bir kanala yazılır.
+
+### K28 — `LLM_TIMEOUT_SECONDS` bütün çağrının üst sınırı
+- **Seçim:** `Assistant._call_model`, generator çağrısını `anyio.fail_after(LLM_TIMEOUT_SECONDS)` içine alır; süre dolarsa 504 `generation_timeout` döner. SDK'nın kendi zaman aşımı da yerinde kalır.
+- **Alternatif:**
+  - Yalnızca SDK'nın zaman aşımı (önceki durum).
+  - İstemci bağlantısı koptuğunda Python'daki işi de iptal etmek.
+- **Neden:** SDK'nın zaman aşımı bağlantı, okuma ve yazma aşaması başına işler. Yavaş akan bir cevap 25 saniyeyi aşıp .NET'in 45 saniyesine yaklaşabilirdi. O durumda hata .NET'ten `upstream_timeout` olarak görünür ve hangi katmanın geciktiği belirsizleşirdi. Artık sıra sabittir: LLM en fazla 25 sn, .NET 45 sn. Toplam sınır sahte bir generator ile test ediliyor; `.env.example`'daki iki değerin sırası da testte.
+- **Bedel:** İstemci koptuğunda veya .NET'in süresi dolduğunda Python'daki istek kendi işini bitirir. Model çağrısı ve maliyeti en fazla `LLM_TIMEOUT_SECONDS` kadar sürer. Kopmayı Python'a taşımak, her isteğin yanında bağlantıyı izleyen ayrı bir görev gerektirirdi.
+- **Ne zaman değişir:** Kopan isteklerin model maliyeti ölçülebilir hâle gelirse bağlantı kopmasını izleyen iptal eklenir.
+
 ## Bilinen sınırlar
 
-- **İlk indirme.** İlk başlangıç internet ister: model yaklaşık 470 MB, tokenizer yaklaşık 17 MB olarak `MODEL_CACHE_DIR` altına iner. Önbellek dolduktan sonra sabit commit sayesinde ağ isteği yapılmaz. Sıfırdan internetsiz kurulum desteklenmez.
+- **İlk indirme.** İlk başlangıç internet ister: model yaklaşık 470 MB, tokenizer yaklaşık 17 MB olarak `MODEL_CACHE_DIR` altına iner (Docker'da `rag-models` volume'ü). Önbellek dolduktan sonra sabit commit sayesinde model için ağ isteği yapılmaz. Dolu volume'lerle `--network none` başlatılan rag konteyneri hazır oldu. `huggingface_hub` yeni bir konteynerde bir kez (sonra en fazla günde bir) Hub'dan kendi istemci bilgisi için küçük bir liste ister. Bu, kütüphanenin hatasını yuttuğu ve 3 sn ile sınırladığı bir denemedir; ağsız başlatmayı bozmadı. Sıfırdan internetsiz kurulum desteklenmez.
 - **Embedding revision.** `EMBEDDING_REVISION` yalnızca tam commit hash'i kabul eder; boşsa sabitlenmiş commit kullanılır. `EMBEDDING_MODEL` revision'sız değiştirilirse aynı commit o repoda bulunmaz ve başlangıç hata verir. Başka bir revision için model testleri ve `measure_retrieval.py` yeniden çalıştırılmalıdır.
 - **Soru uzunluğu.** Sorgu da 512 token sınırına tabidir. Sınırı aşan soru kesilmez, 400 `invalid_request` olur. 2.000 karakterlik sınır bunu garanti etmez: normal Türkçe metinde 2.000 karakter yaklaşık 470 token tutarken 600 emoji sınırı aşıyor (gerçek tokenizer ile ölçüldü).
 - **Skorların taşınabilirliği.** Skorlar farklı CPU mimarilerinde son basamaklarda (yaklaşık 1e-6) farklı çıkabilir. Eşit skorda `chunk_id` sıralaması yalnızca birebir eşit skorlar için devreye girer.
@@ -172,4 +232,4 @@ Her karar notu şu sırayı izler: **Seçim · Alternatif · Neden · Bedel · N
 - **Model sürümü logda takma adla görünür.** OpenRouter yanıtta modeli `openai/gpt-6-luna` olarak bildiriyor, tarihli slug'ı değil. Hangi snapshot'ın kullanıldığı ancak OpenRouter'ın public models API'sinden (o gün `openai/gpt-6-luna-20260922`) ayrıca kaydedilebilir.
 - **Enjeksiyon dayanıklılığı kanıtlanmadı.** Testler, talimat içeren soru ve belgenin modele yalnızca veri olarak gittiğini ve sunucu doğrulamasının sürdüğünü gösterir; canlı modelin talimata uyup uymadığını göstermez.
 - **Kaynak doğrulaması anlamsal değildir** (K25). Doğru bölüme atıf yapan yanlış bir süre geçebilir; bunu yalnızca eval ve insan incelemesi yakalar.
-- **İptal Python'a ulaşmaz.** .NET'in süresi dolduğunda veya istemci koptuğunda .NET'ten Python'a giden çağrı iptal edilir, ama Python'daki istek kendi işini bitirene kadar çalışır. Üretimde bu, model çağrısının (ve maliyetinin) `LLM_TIMEOUT_SECONDS`'a kadar sürmesi demektir. .NET'in 45 sn'si, 25 sn'lik model süresinden uzun olduğu için normal akışta .NET önce zaman aşımına düşmez.
+- **İptal Python'a ulaşmaz.** .NET'in süresi dolduğunda veya istemci koptuğunda .NET'ten Python'a giden çağrı iptal edilir, ama Python'daki istek kendi işini bitirene kadar çalışır. Üretimde bu, model çağrısının (ve maliyetinin) en fazla `LLM_TIMEOUT_SECONDS` sürmesi demektir (K28).

@@ -1,0 +1,62 @@
+# Local runtime: docker compose up --build -d --wait
+# Only the .NET API is reachable from the host, on 127.0.0.1:8080. The RAG service publishes no
+# port; it stays on the project's bridge network, which still has outbound internet for the first
+# embedding-model download and for the LLM provider.
+
+# Explicit, because the project folder name contains a space and a non-ASCII letter.
+name: ai-knowledge-assistant
+
+services:
+  rag:
+    build:
+      context: .
+      dockerfile: src/rag_service/Dockerfile
+    environment:
+      # Read from the shell or ./.env; blank means "not set" (defaults in .env.example). Only
+      # this service receives the provider key. Container paths are set in its Dockerfile.
+      APP_MODE: ${APP_MODE:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
+      EMBEDDING_REVISION: ${EMBEDDING_REVISION:-}
+      TOP_K: ${TOP_K:-}
+      MIN_RETRIEVAL_SCORE: ${MIN_RETRIEVAL_SCORE:-}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-}
+    volumes:
+      # The corpus stays the Markdown in the repository; the container cannot change it.
+      - ./data/knowledge:/knowledge:ro
+      # Derived and rebuildable: the SQLite index and the downloaded model, kept across restarts.
+      - rag-index:/var/lib/rag/index
+      - rag-models:/var/lib/rag/models
+    healthcheck:
+      # The port opens only after the corpus, model and index are loaded and checked, so a 200
+      # here means ready. Readiness never calls the LLM.
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # The first start downloads the embedding model (about 490 MB) before the port opens.
+      start_period: 10m
+      start_interval: 5s
+
+  api:
+    build:
+      context: .
+      dockerfile: src/SupportAssistant.Api/Dockerfile
+    environment:
+      RAG_SERVICE_URL: http://rag:8000
+      RAG_TIMEOUT_SECONDS: ${RAG_TIMEOUT_SECONDS:-}
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      rag:
+        condition: service_healthy
+
+volumes:
+  rag-index:
+  rag-models:

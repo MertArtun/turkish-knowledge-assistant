@@ -83,13 +83,21 @@ def create_app(assistant: Assistant | None = None) -> FastAPI:
     async def invalid_request(request: Request, error: RequestValidationError) -> JSONResponse:
         # FastAPI's default is 422 with the offending input echoed back; the contract is 400 with
         # a fixed message that never repeats the user's input. The log names fields, not values.
-        fields = sorted({".".join(map(str, detail["loc"])) for detail in error.errors()})
-        logger.info("invalid request request_id=%s fields=%s", request.state.request_id, fields)
+        invalid_fields = sorted({".".join(map(str, detail["loc"])) for detail in error.errors()})
+        logger.info(
+            "invalid_request",
+            extra={
+                "fields": {"request_id": request.state.request_id, "invalid_fields": invalid_fields}
+            },
+        )
         return error_response(request, "invalid_request", INVALID_REQUEST_MESSAGE)
 
     @app.exception_handler(AskError)
     async def refused(request: Request, error: AskError) -> JSONResponse:
-        logger.info("refused request_id=%s code=%s", request.state.request_id, error.code)
+        logger.info(
+            "refused",
+            extra={"fields": {"request_id": request.state.request_id, "code": error.code}},
+        )
         return error_response(request, error.code, error.message)
 
     @app.exception_handler(Exception)

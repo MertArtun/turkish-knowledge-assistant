@@ -56,6 +56,19 @@ def test_first_start_builds_the_index_and_the_next_start_reuses_it(corpus, index
     np.testing.assert_array_equal(reused.vectors, built.vectors)
 
 
+def test_startup_log_says_whether_the_index_was_built_or_reused(corpus, index_path, caplog):
+    # A container restart should show in its log that the fingerprint matched.
+    caplog.set_level(logging.INFO, logger="app.index_store")
+    built = load_or_build_index(corpus, FakeEmbedder(), index_path)
+    load_or_build_index(corpus, FakeEmbedder(), index_path)
+
+    messages = [record.getMessage() for record in caplog.records]
+
+    assert messages[0].startswith("building index")
+    assert messages[-1].startswith("reusing index")
+    assert built.fingerprint[:12] in messages[-1]
+
+
 def test_every_section_is_embedded_as_a_passage_with_its_heading_path(corpus, index_path):
     embedder = FakeEmbedder()
 

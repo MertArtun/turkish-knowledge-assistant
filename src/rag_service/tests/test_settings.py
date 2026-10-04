@@ -116,14 +116,26 @@ def test_key_is_not_exposed_by_settings_repr():
     assert FAKE_KEY not in repr(settings)
 
 
-def test_env_example_lists_exactly_the_configuration_names():
+def env_example_entries() -> dict[str, str]:
     env_example = Path(__file__).resolve().parents[3] / ".env.example"
-    entries = dict(
+    return dict(
         line.split("=", 1)
         for line in env_example.read_text(encoding="utf-8").splitlines()
         if line and not line.startswith("#")
     )
+
+
+def test_env_example_lists_exactly_the_configuration_names():
+    entries = env_example_entries()
     dotnet_only = {"RAG_SERVICE_URL", "RAG_TIMEOUT_SECONDS"}
 
     assert set(entries) - dotnet_only == set(ENV_TO_FIELD)
     assert load_settings(entries).app_mode == "evidence_only"
+
+
+def test_env_example_gives_the_dotnet_upstream_more_time_than_the_llm_deadline():
+    # Otherwise the .NET API gives up first: a slow model is reported as upstream_timeout
+    # instead of generation_timeout, and the layer that failed is no longer visible.
+    entries = env_example_entries()
+
+    assert float(entries["RAG_TIMEOUT_SECONDS"]) > float(entries["LLM_TIMEOUT_SECONDS"])

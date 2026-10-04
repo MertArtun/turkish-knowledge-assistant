@@ -2,6 +2,7 @@ import asyncio
 import json
 import socket
 import threading
+import time
 from datetime import UTC, date, datetime
 
 import numpy as np
@@ -456,6 +457,23 @@ def test_provider_failures_are_errors_never_missing_information_or_evidence(code
 
     assert failed.value.code == code
     assert "insufficient_quota" not in failed.value.message
+
+
+def test_model_slower_than_llm_timeout_is_cut_off_as_generation_timeout():
+    # The SDK's own timeout applies per connect/read/write phase, so a slowly trickling reply
+    # could outlast it; LLM_TIMEOUT_SECONDS must bound the whole call, well inside the .NET API's
+    # longer upstream timeout.
+    answer = model_answer("answered", [("x", ["D04#kargo"])])
+    generator = FakeGenerator(answer, delay_seconds=30)
+    settings = load_settings({"LLM_TIMEOUT_SECONDS": "0.2"})
+    assistant = make_assistant(RETURNS_SCORES, settings=settings, generator=generator)
+    started = time.perf_counter()
+
+    with pytest.raises(AskError) as failed:
+        ask(assistant, question="İade kargosunu kim ödüyor?", mode="generative")
+
+    assert failed.value.code == "generation_timeout"
+    assert time.perf_counter() - started < 5
 
 
 def test_evidence_mode_never_calls_the_generator():

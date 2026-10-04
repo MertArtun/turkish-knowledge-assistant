@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace SupportAssistant.Api.Tests;
 
@@ -27,6 +28,7 @@ internal sealed class ApiUnderTest : IAsyncDisposable
             builder.ConfigureTestServices(services => services
                 .AddHttpClient<RagServiceClient>()
                 .ConfigurePrimaryHttpMessageHandler(() => Rag));
+            builder.ConfigureLogging(logging => logging.AddProvider(Logs));
         });
         if (useKestrel)
         {
@@ -41,6 +43,8 @@ internal sealed class ApiUnderTest : IAsyncDisposable
     public static ApiUnderTest OnKestrel() => new(useKestrel: true, []);
 
     public RagServiceStub Rag { get; } = new();
+
+    public CapturedLogs Logs { get; } = new();
 
     public HttpClient Client { get; }
 
