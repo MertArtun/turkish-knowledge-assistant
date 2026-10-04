@@ -20,7 +20,7 @@ Bu belge, MH-10 veya destek paneliyle ilgili bir sorun için destek talebi (tick
 
 ## Talepte bulunması gereken bilgiler {#alanlar}
 
-Her destek talebinde şu bilgiler yer alır:
+Destek talebi (ticket) açılırken talebe şu bilgiler yazılır:
 
 - MH-10'un seri numarası.
 - Ekranda bir hata kodu görüntülendiyse o hata kodu. Hata kodu görüntülenmediyse bu bilgi boş bırakılabilir.
@@ -28,4 +28,4 @@ Her destek talebinde şu bilgiler yer alır:
 
 ## Bilgilerin doğruluğu {#dogruluk}
 
-Seri numarası ve hata kodu, müşterinin ekranında veya üründe gördüğü biçimde, kısaltılmadan yazılır. Yeniden üretme adımları, destek ekibinin aynı adımları izleyerek sorunu görebileceği açıklıkta olmalıdır.
+Seri numarası ve hata kodu, müşterinin ekranında veya üründe gördüğü biçimde, kısaltılmadan yazılır. Yeniden üretme adımları, destek ekibinin aynı adımları izleyerek sorunu görebileceği açıklıkta olmalıdır. Adımlar yapıldıkları sırayla yazılır; "çalışmıyor" gibi genel bir ifade yerine her adımdan sonra ekranda ne görüldüğü belirtilir.

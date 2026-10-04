@@ -497,6 +497,47 @@ class QuestionSetTests(unittest.TestCase):
             if "revision" not in question:
                 self.assertNotIn("revisions", question, question["id"])
 
+    def test_widened_patterns_accept_the_documents_own_wording_and_keep_the_old_ones(self):
+        # These patterns rejected correct claims worded as the corpus itself words the fact
+        # ("pazartesiden cumaya" is how D08 defines "hafta içi"); the old patterns stay on record.
+        accepted = {
+            "E05": [
+                "süre ürünün kargoya verildiği tarihten başlamaz",
+                "ürün kargoya verildiğinde değil, iade kabul edildikten sonra başlar",
+                "ürünün kargoya verildiği gün değil, iadenin kabul edilmesinden sonra başlar",
+                "süre ürünün kargoya verildiği tarihte değil, kabulden sonra başlar",
+            ],
+            "E06": [
+                "sorunu yeniden üretme adımları",
+                "sorun ortaya çıkana kadar yapılan işlemleri hangi sırayla yaptıklarını",
+            ],
+            "E08": ["hafta içi 09.00–18.00", "pazartesiden cumaya 09.00–18.00"],
+        }
+        rejected = {
+            "E05": ["Süre, ürünü kargoya verdiğiniz gün başlar."],
+            "E06": ["Seri numarasını yazın."],
+            "E08": ["Destek ekibine her gün ulaşılabilir."],
+        }
+        for question_id, texts in accepted.items():
+            question = next(q for q in self.questions if q["id"] == question_id)
+            self.assertEqual(question["revision"], 2, question_id)
+            previous = question["revisions"][0]
+            self.assertTrue(previous["reason"])
+            changed = [
+                (old["pattern"], new["pattern"])
+                for old, new in zip(
+                    previous["required_facts"], question["required_facts"], strict=True
+                )
+                if old["pattern"] != new["pattern"]
+            ]
+            self.assertEqual(len(changed), 1, question_id)
+            old_pattern, new_pattern = changed[0]
+            for text in texts:
+                self.assertRegex(text, new_pattern)
+            self.assertTrue(any(not re.search(old_pattern, text) for text in texts))
+            for text in rejected[question_id]:
+                self.assertNotRegex(text, new_pattern)
+
     def test_report_shows_the_question_revision(self):
         e15 = next(q for q in self.questions if q["id"] == "E15")
         item = check(e15, insufficient(), mode="generative")
@@ -506,7 +547,7 @@ class QuestionSetTests(unittest.TestCase):
             item,
         )
 
-        self.assertIn("- Soru sürümü: 2 (önceki metinler `revisions` alanında)", lines)
+        self.assertIn("- Soru sürümü: 2 (önceki sürümler `revisions` alanında)", lines)
 
 
 if __name__ == "__main__":

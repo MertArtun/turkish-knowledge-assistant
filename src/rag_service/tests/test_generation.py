@@ -38,6 +38,7 @@ VALID_OUTPUT = {
 PINNED_PROMPT_HASHES = {
     "answer-v1": "e24d9ade7581b15623beca2eac3ca38c17b787aa41fd76921e266762525ea6b0",
     "answer-v2": "c63fbe3197f0f954bff7375a87e9da52c531a7fa650fbf22b55bebbd189c0a0c",
+    "answer-v3": "7f449d1c767f65b1e458f602ffc57247e407e0ece217528702b2e8b868ada411",
 }
 
 
@@ -72,8 +73,22 @@ def test_system_prompt_states_the_scope_and_partial_rules():
 
     assert "Soru yalnızca effective_scope dışını soruyorsa" in text
     assert "kapsamını claim cümlesinde açıkça söyle" in text
-    assert "Sorulmayan bir kuralı claim olarak ekleme" in text
+    assert "Sorulan konudan farklı bir kuralı claim olarak ekleme" in text
     assert "missing_topics boş kalacaksa status partial olamaz" in text
+
+
+def test_system_prompt_states_the_rules_added_after_repeated_runs():
+    # Observed in repeated live runs: a start point given without its period, a period without its
+    # condition, unasked hypotheticals as missing topics, a question date equal to as_of treated as
+    # another date, computed values cited as facts, field names and caller e-mails in the text.
+    text = load_system_prompt().text
+
+    assert "Sorulan kuralı bölümde yazdığı bütünlükle ver" in text
+    assert "Sorunun sormadığı varsayımsal durumları" in text
+    assert "önce onu effective_as_of ile karşılaştır" in text
+    assert "Bölümde yazmayan bir değeri hesaplayarak claim yazma" in text
+    assert "kişisel veya gizli bilgileri claim ve missing_topics metinlerinde tekrar etme" in text
+    assert "alan adlarını bu metinlerde kullanma" in text
 
 
 # --- what the model receives and may return ------------------------------------------------------

@@ -1,0 +1,527 @@
+{
+  "metadata": {
+    "run_id": "20261004-221838-generative",
+    "started_at": "2026-10-04T22:18:38+03:00",
+    "finished_at": "2026-10-04T22:19:15+03:00",
+    "mode": "generative",
+    "api": "http://127.0.0.1:8080",
+    "request_timeout_seconds": 60,
+    "question_count": 18,
+    "questions_sha256": "2c913430c87adf52be46e07d431661d6fec21fbe4a011a29ad33438257de9696",
+    "git": {
+      "commit": "545f0d03b9185f59f5e7b2a7e94ddb970f0039ec",
+      "dirty": false,
+      "dirty_paths": []
+    },
+    "readiness": {
+      "app_mode": "evidence_only",
+      "generation_configured": true,
+      "llm_model": "openai/gpt-6-luna",
+      "embedding_model": "intfloat/multilingual-e5-small",
+      "embedding_revision": "614241f622f53c4eeff9890bdc4f31cfecc418b3",
+      "corpus_fingerprint": "01385416c9bb7157d697f823518d482842e343107b5f4c0f5d19d11f313e40ac",
+      "prompt_version": "answer-v2",
+      "prompt_hash": "c63fbe3197f0f954bff7375a87e9da52c531a7fa650fbf22b55bebbd189c0a0c",
+      "top_k": 4,
+      "min_retrieval_score": null
+    },
+    "readiness_unchanged": true,
+    "as_of_note": "İsteklerdeki as_of değerlendirilen iş tarihidir (E16 dışında 2026-10-04, E16'da 2026-06-01); gerçek çalıştırma zamanıyla aynı kavram değildir."
+  },
+  "summary": {
+    "http": {
+      "passed": 18,
+      "applicable": 18,
+      "failed": [],
+      "not_evaluable": []
+    },
+    "status": {
+      "passed": 17,
+      "applicable": 18,
+      "failed": [
+        "E14"
+      ],
+      "not_evaluable": []
+    },
+    "retrieval": {
+      "passed": 15,
+      "applicable": 15,
+      "failed": [],
+      "not_evaluable": []
+    },
+    "citation": {
+      "passed": 15,
+      "applicable": 15,
+      "failed": [],
+      "not_evaluable": []
+    },
+    "version": {
+      "passed": 6,
+      "applicable": 6,
+      "failed": [],
+      "not_evaluable": []
+    },
+    "source_validity": {
+      "passed": 15,
+      "applicable": 15,
+      "failed": [],
+      "not_evaluable": []
+    },
+    "no_unnecessary_refusal": {
+      "passed": 15,
+      "applicable": 15,
+      "failed": [],
+      "not_evaluable": []
+    },
+    "no_claims_when_unanswerable": {
+      "passed": 3,
+      "applicable": 3,
+      "failed": [],
+      "not_evaluable": []
+    },
+    "required_facts": {
+      "passed": 15,
+      "applicable": 15,
+      "failed": [],
+      "not_evaluable": []
+    },
+    "forbidden_facts": {
+      "passed": 10,
+      "applicable": 10,
+      "failed": [],
+      "not_evaluable": []
+    }
+  },
+  "multi_source_summary": {
+    "retrieval": {
+      "passed": 1,
+      "applicable": 1,
+      "failed": [],
+      "not_evaluable": []
+    },
+    "citation": {
+      "passed": 1,
+      "applicable": 1,
+      "failed": [],
+      "not_evaluable": []
+    }
+  },
+  "questions": [
+    {
+      "id": "E01",
+      "category": "normal",
+      "request_id": "eval.20261004-221838-generative.E01",
+      "http_status": 200,
+      "elapsed_ms": 2310,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E02",
+      "category": "normal",
+      "request_id": "eval.20261004-221838-generative.E02",
+      "http_status": 200,
+      "elapsed_ms": 2726,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E03",
+      "category": "version_conflict",
+      "request_id": "eval.20261004-221838-generative.E03",
+      "http_status": 200,
+      "elapsed_ms": 1474,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "pass",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "pass"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E04",
+      "category": "version_conflict",
+      "request_id": "eval.20261004-221838-generative.E04",
+      "http_status": 200,
+      "elapsed_ms": 1774,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "pass",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "pass"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E05",
+      "category": "normal",
+      "request_id": "eval.20261004-221838-generative.E05",
+      "http_status": 200,
+      "elapsed_ms": 3986,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "pass"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E06",
+      "category": "normal",
+      "request_id": "eval.20261004-221838-generative.E06",
+      "http_status": 200,
+      "elapsed_ms": 2185,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E07",
+      "category": "normal",
+      "request_id": "eval.20261004-221838-generative.E07",
+      "http_status": 200,
+      "elapsed_ms": 1504,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E08",
+      "category": "normal",
+      "request_id": "eval.20261004-221838-generative.E08",
+      "http_status": 200,
+      "elapsed_ms": 1785,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E09",
+      "category": "normal",
+      "request_id": "eval.20261004-221838-generative.E09",
+      "http_status": 200,
+      "elapsed_ms": 3289,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E10",
+      "category": "normal",
+      "request_id": "eval.20261004-221838-generative.E10",
+      "http_status": 200,
+      "elapsed_ms": 1630,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E11",
+      "category": "unanswerable",
+      "request_id": "eval.20261004-221838-generative.E11",
+      "http_status": 200,
+      "elapsed_ms": 1210,
+      "expected_status": "insufficient_evidence",
+      "actual_status": "insufficient_evidence",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "n/a",
+        "citation": "n/a",
+        "version": "n/a",
+        "source_validity": "n/a",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "pass",
+        "required_facts": "n/a",
+        "forbidden_facts": "pass"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E12",
+      "category": "unanswerable",
+      "request_id": "eval.20261004-221838-generative.E12",
+      "http_status": 200,
+      "elapsed_ms": 1589,
+      "expected_status": "insufficient_evidence",
+      "actual_status": "insufficient_evidence",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "n/a",
+        "citation": "n/a",
+        "version": "n/a",
+        "source_validity": "n/a",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "pass",
+        "required_facts": "n/a",
+        "forbidden_facts": "pass"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E13",
+      "category": "unanswerable",
+      "request_id": "eval.20261004-221838-generative.E13",
+      "http_status": 200,
+      "elapsed_ms": 1449,
+      "expected_status": "insufficient_evidence",
+      "actual_status": "insufficient_evidence",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "n/a",
+        "citation": "n/a",
+        "version": "n/a",
+        "source_validity": "n/a",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "pass",
+        "required_facts": "n/a",
+        "forbidden_facts": "pass"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E14",
+      "category": "paraphrase",
+      "request_id": "eval.20261004-221838-generative.E14",
+      "http_status": 200,
+      "elapsed_ms": 2461,
+      "expected_status": "answered",
+      "actual_status": "partial",
+      "checks": {
+        "http": "pass",
+        "status": "fail",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "pass",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "pass"
+      },
+      "problems": [
+        "status: partial, beklenen answered"
+      ],
+      "human_review": "pending"
+    },
+    {
+      "id": "E15",
+      "category": "partial",
+      "request_id": "eval.20261004-221838-generative.E15",
+      "http_status": 200,
+      "elapsed_ms": 1721,
+      "expected_status": "partial",
+      "actual_status": "partial",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "pass",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "pass"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E16",
+      "category": "historical_version",
+      "request_id": "eval.20261004-221838-generative.E16",
+      "http_status": 200,
+      "elapsed_ms": 1815,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "pass",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "pass"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E17",
+      "category": "false_premise",
+      "request_id": "eval.20261004-221838-generative.E17",
+      "http_status": 200,
+      "elapsed_ms": 1754,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E18",
+      "category": "multi_source",
+      "request_id": "eval.20261004-221838-generative.E18",
+      "http_status": 200,
+      "elapsed_ms": 2159,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "pass",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "pass"
+      },
+      "problems": [],
+      "human_review": "pending"
+    }
+  ]
+}

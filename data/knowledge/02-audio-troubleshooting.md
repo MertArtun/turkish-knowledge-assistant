@@ -16,9 +16,11 @@ supersedes: null
 
 ## Ne zaman kullanılır {#kullanim}
 
-Bu belge, MH-10 takılıyken görüşmede ses gelmemesi veya müşterinin temsilciyi duyamaması durumunda yapılacak kontrolleri anlatır. Kontroller aşağıdaki sırayla yapılır; bir adım sorunu çözerse sonraki adımlara geçmeye gerek yoktur.
+Bu belge, MH-10 ile yapılan görüşmelerde yaşanan ses sorunlarında destek temsilcisinin izleyeceği kontrolleri ve bu kontrollerin sınırını anlatır.
 
-## Ses gelmiyorsa {#ses-yok}
+## Ses gelmiyorsa veya müşteri temsilciyi duyamıyorsa {#ses-yok}
+
+MH-10 takılıyken görüşmede ses gelmiyorsa veya müşteri temsilciyi duyamıyorsa aşağıdaki kontroller sırayla yapılır; bir adım sorunu çözerse sonraki adımlara geçmeye gerek yoktur.
 
 1. MH-10'un USB kablosunun bilgisayara tam olarak takılı olduğunu kontrol edin; gerekirse çıkarıp yeniden takın.
 2. Destek panelinin ses ayarlarında MH-10'un giriş ve çıkış aygıtı olarak seçili olduğunu doğrulayın.

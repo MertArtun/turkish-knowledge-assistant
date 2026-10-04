@@ -25,7 +25,7 @@ public sealed record ApiError(string Code, int StatusCode, string Message)
         "invalid_request",
         StatusCodes.Status400BadRequest,
         "Soru veya kapsam asistan servisinin sınırlarını aşıyor: soru arama modelinin işleyebileceği "
-        + "uzunluğu aşmamalı, scope alanlarının her biri en fazla 64 karakter olmalı.");
+        + "uzunluğu aşmamalı, scope alanlarının her biri 1–64 karakter olmalı.");
 
     public static readonly ApiError PayloadTooLarge = new(
         "payload_too_large",

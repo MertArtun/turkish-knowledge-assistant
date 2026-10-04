@@ -20,8 +20,8 @@ Bu belge, destek ekibine bildirilen bir olayın hangi durumda P1 önceliğiyle e
 
 ## P1 olayı ve ilk yanıt hedefi {#p1}
 
-Tüm temsilcilerin çalışmasını durduran bir olay P1 olarak sınıflandırılır. P1 olaylarda ilk yanıt hedefi 2 çalışma saatidir. Bu hedef yalnızca destek ekibinin ilk yanıtı ne zaman vereceğini tanımlar; sorunun bu süre içinde çözüleceği anlamına gelmez ve bir çözüm süresi garantisi değildir.
+Tüm temsilcilerin çalışmasını durduran bir olay P1 olarak sınıflandırılır. P1 olaylarda ilk yanıt hedefi 2 çalışma saatidir. Bu hedef yalnızca destek ekibinin ilk yanıtı ne zaman vereceğini tanımlar; sorunun bu süre içinde çözüleceği anlamına gelmez ve bir çözüm süresi garantisi değildir. Diğer öncelik seviyeleri ve onların hedefleri bu belgede tanımlanmamıştır.
 
 ## Müşteriye aktarırken {#iletisim}
 
-P1 hakkında bilgi verirken "ilk yanıt" ifadesini kullanın ve bu hedefi çözüm süresi gibi sunmayın. Çözümün ne kadar süreceği bu belgede tanımlanmamıştır; olayın niteliğine göre değişebilir.
+P1 hakkında bilgi verirken "ilk yanıt" ifadesini kullanın ve bu hedefi çözüm süresi gibi sunmayın. Çözümün ne kadar süreceği bu belgede tanımlanmamıştır; olayın niteliğine göre değişebilir. Müşteri ilk yanıt hedefini çözüm süresiyle karıştırırsa farkı açıklayın: ilk yanıt, destek ekibinin olaya verdiği ilk dönüştür.

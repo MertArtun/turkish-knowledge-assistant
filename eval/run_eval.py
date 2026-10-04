@@ -587,7 +587,7 @@ def _question_details(question: dict, exchange: dict, item: dict) -> list[str]:
         "",
         f"- Soru: {request['question']}",
         *(
-            [f"- Soru sürümü: {question['revision']} (önceki metinler `revisions` alanında)"]
+            [f"- Soru sürümü: {question['revision']} (önceki sürümler `revisions` alanında)"]
             if "revision" in question
             else []
         ),

@@ -20,8 +20,8 @@ Bu belge, destek paneline giriş yapamayan bir kullanıcının parolasını unut
 
 ## Parolanın unutulması {#sifre}
 
-Parolasını unutan kullanıcı, destek panelinin giriş ekranından parola sıfırlama isteğinde bulunur. Parola sıfırlama bağlantısı, hesapta kayıtlı e-posta adresine gönderilir. Kullanıcı bu bağlantıyı açarak yeni parolasını belirler.
+Parolasını unutan kullanıcı, destek panelinin giriş ekranından parola sıfırlama isteğinde bulunur. Parola sıfırlama bağlantısı, hesapta kayıtlı e-posta adresine gönderilir. Kullanıcı bu bağlantıyı açarak yeni parolasını belirler ve destek paneline yeni parolasıyla giriş yapar.
 
 ## Kayıtlı e-posta adresi {#eposta}
 
-Sıfırlama bağlantısı yalnızca hesapta kayıtlı e-posta adresine gönderilir; görüşme sırasında söylenen farklı bir adrese gönderilmez. Kullanıcı bağlantıyı göremiyorsa kayıtlı e-posta adresinin gelen kutusunu kontrol etmelidir.
+Sıfırlama bağlantısı yalnızca hesapta kayıtlı e-posta adresine gönderilir; görüşme sırasında söylenen farklı bir adrese gönderilmez. Destek temsilcisi bağlantıyı başka bir adrese göndermeyi teklif etmez. Kullanıcı bağlantıyı göremiyorsa kayıtlı e-posta adresinin gelen kutusunu kontrol etmelidir.

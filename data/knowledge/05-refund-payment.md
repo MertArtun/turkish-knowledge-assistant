@@ -16,8 +16,8 @@ supersedes: null
 
 ## Ne zaman kullanılır {#kullanim}
 
-Bu belge, iadesi kabul edilen MH-10 kulaklıklar için bedelin müşteriye ne zaman ödeneceğini açıklar.
+Bu belge, Türkiye'deki kurumsal (B2B) müşterilerin iadesi kabul edilen MH-10 kulaklıkları için bedelin müşteriye ne zaman ödeneceğini açıklar. Belgede yazmayan bir ödeme tarihi müşteriye taahhüt edilmez.
 
 ## Ödeme süresi {#bedel}
 
-İade bedeli, iadenin kabul edilmesinden sonra 5 iş günü içinde ödenir. Süre, ürünün kargoya verildiği tarihten başlamaz. İş günü, hafta sonu dışında kalan günlerdir; takvim günüyle karıştırılmamalıdır.
+İade bedeli, iadenin kabul edilmesinden sonra 5 iş günü içinde ödenir. Süre, ürünün kargoya verildiği tarihten başlamaz. İş günü, hafta sonu dışında kalan günlerdir; cumartesi ve pazar iş günü sayılmaz ve süre takvim günüyle karıştırılmamalıdır. Müşteriye ödeme süresi bildirilirken sürenin iadenin kabul edilmesinden sonra başladığı ve iş günüyle sayıldığı açıkça belirtilir; müşteri süreyi ürünü kargoya verdiği günden saymaya başladıysa başlangıç noktası düzeltilir.

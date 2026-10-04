@@ -7,3 +7,14 @@
 {"id": "DEV07", "category": "normal", "request": {"question": "Teslim aldığım MH-10'u kaç gün içinde geri gönderebilirim?", "as_of": "2026-10-04"}, "expected_source_ids": ["D04#sure"]}
 {"id": "DEV08", "category": "historical_version", "request": {"question": "Mart 2026'da teslim edilen bir ürün için iade talebi açma süresi kaç gündü?", "as_of": "2026-03-15"}, "expected_source_ids": ["D03#sure"]}
 {"id": "DEV09", "category": "normal", "request": {"question": "İade ettiğim ürünün parası hesabıma ne zaman geçer?", "as_of": "2026-10-04"}, "expected_source_ids": ["D05#bedel"]}
+{"id": "DEV10", "category": "normal", "request": {"question": "Yeni başlayan bir temsilcinin kulaklığını panelde kullanabilmesi için hangi ayarlar yapılmalı?", "as_of": "2026-10-04"}, "expected_source_ids": ["D01#baglanti"]}
+{"id": "DEV11", "category": "normal", "request": {"question": "Görüşmede müşteri beni duymuyor; hangi adımları sırayla denemeliyim?", "as_of": "2026-10-04"}, "expected_source_ids": ["D02#ses-yok"]}
+{"id": "DEV12", "category": "normal", "request": {"question": "Talep açarken seri numarasını ve hata kodunu nasıl yazmalıyım?", "as_of": "2026-10-04"}, "expected_source_ids": ["D06#dogruluk"]}
+{"id": "DEV13", "category": "normal", "request": {"question": "Bütün ekip sisteme bağlanamıyorsa olay hangi öncelikte değerlendirilir?", "as_of": "2026-10-04"}, "expected_source_ids": ["D07#p1"]}
+{"id": "DEV14", "category": "false_premise", "request": {"question": "Müşteriye P1 olayların iki saat içinde çözüleceğini söyleyebilir miyim?", "as_of": "2026-10-04"}, "expected_source_ids": ["D07#p1"]}
+{"id": "DEV15", "category": "normal", "request": {"question": "Cumartesi günü destek ekibine ulaşılabiliyor mu?", "as_of": "2026-10-04"}, "expected_source_ids": ["D08#saatler"]}
+{"id": "DEV16", "category": "normal", "request": {"question": "Müşteriye destek saatlerini hangi saat dilimiyle yazmalıyım?", "as_of": "2026-10-04"}, "expected_source_ids": ["D08#saat-dilimi"]}
+{"id": "DEV17", "category": "normal", "request": {"question": "Sıfırlama e-postasını göremeyen kullanıcıya ne söylemeliyim?", "as_of": "2026-10-04"}, "expected_source_ids": ["D09#eposta"]}
+{"id": "DEV18", "category": "normal", "request": {"question": "Müşteri doğrulama kodunu bana okumak isterse nasıl davranmalıyım?", "as_of": "2026-10-04"}, "expected_source_ids": ["D10#musteri-istegi"]}
+{"id": "DEV19", "category": "version", "request": {"question": "Ağustos 2026'da açılan bir iade talebinde kargo etiketini kim sağlar?", "as_of": "2026-08-10"}, "expected_source_ids": ["D04#kargo"]}
+{"id": "DEV20", "category": "multi_source", "request": {"question": "Ses sorunu kontrollerden sonra da sürerse açacağım talebe hangi bilgileri eklemeliyim?", "as_of": "2026-10-04"}, "expected_source_ids": ["D02#ses-yok", "D06#alanlar"]}

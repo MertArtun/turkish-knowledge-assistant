@@ -16,11 +16,11 @@ supersedes: null
 
 ## Ne zaman kullanılır {#kullanim}
 
-Bu belge, MH-10 temsilci kulaklığının Yardım bende destek panelinde ilk kez kullanıma hazırlanmasını anlatır. Yeni bir temsilci çalışmaya başladığında veya kulaklık başka bir bilgisayarda kullanılacağında aynı adımlar izlenir.
+Bu belge, MH-10 temsilci kulaklığının Yardım bende destek panelinde ilk kez kullanıma hazırlanmasını anlatır.
 
 ## Bağlantı ve aygıt seçimi {#baglanti}
 
-MH-10'u bilgisayarın USB bağlantı noktasına takın. Ardından destek panelinin ses ayarlarını açın ve MH-10'u hem giriş aygıtı (mikrofon) hem de çıkış aygıtı (hoparlör) olarak seçin. Yalnızca birini seçmek yeterli değildir: giriş aygıtı seçilmezse müşteri temsilciyi duyamaz, çıkış aygıtı seçilmezse temsilci müşteriyi duyamaz.
+MH-10'u bilgisayarın USB bağlantı noktasına takın. Ardından destek panelinin ses ayarlarını açın ve MH-10'u hem giriş aygıtı (mikrofon) hem de çıkış aygıtı (hoparlör) olarak seçin. Yalnızca birini seçmek yeterli değildir: giriş aygıtı seçilmezse müşteri temsilciyi duyamaz, çıkış aygıtı seçilmezse temsilci müşteriyi duyamaz. Bu adımlar yeni bir temsilci çalışmaya başladığında ve MH-10 başka bir bilgisayarda kullanılacağında da aynen uygulanır.
 
 ## Kurulumun tamamlanması {#tamamlama}
 

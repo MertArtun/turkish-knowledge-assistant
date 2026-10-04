@@ -7,8 +7,8 @@
     "embedding_model": "intfloat/multilingual-e5-small",
     "embedding_revision": "614241f622f53c4eeff9890bdc4f31cfecc418b3",
     "corpus_fingerprint": "fabd5f021008b2ddecfa6c3cced27735cd8d65391453fabc8f77a61ac5bf5e2f",
-    "prompt_version": "answer-v2",
-    "prompt_hash": "c63fbe3197f0f954bff7375a87e9da52c531a7fa650fbf22b55bebbd189c0a0c",
+    "prompt_version": "answer-v3",
+    "prompt_hash": "7f449d1c767f65b1e458f602ffc57247e407e0ece217528702b2e8b868ada411",
     "top_k": 4,
     "min_retrieval_score": null
   }

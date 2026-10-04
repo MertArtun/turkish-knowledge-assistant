@@ -420,6 +420,8 @@
 
 ## Değerlendirme bulguları
 
+### İlk koşular
+
 İlk koşular 2026-10-04'te, commit `50518bc` üzerinde yapıldı (gerçek çalıştırma zamanı her raporun başında); çalışma ağacında koşu girdileri commit'ten farklı değildi. Her mod bir kez koşuldu. İki koşu arasında yalnızca anahtarın varlığı değişti; corpus fingerprint, prompt, embedding revision, `top_k=4` ve kapalı eşik aynıydı. Üretken koşu OpenRouter üzerinden `openai/gpt-6-luna` ile yapıldı. Sağlayıcı yanıtlarda modeli takma adla bildirdi; OpenRouter'ın public models API'si koşudan hemen sonra kalıcı slug olarak `openai/gpt-6-luna-20260922` gösterdi. Ayrıntılar ve her sorunun beklenen/gerçek çıktısı:
 - [`eval/results/20261004-200050-evidence_only/report.md`](../eval/results/20261004-200050-evidence_only/report.md)
 - [`eval/results/20261004-200118-generative/report.md`](../eval/results/20261004-200118-generative/report.md)
@@ -438,7 +440,38 @@ Alıntı modu koşusunda tek başarısız kontrol, aynı üç soruda beklenen b�
 - Süre ve token: üretim 1,3–2,8 sn; giriş 1.692–1.808, çıktı 46–237 token. Reasoning tokenı 15 çağrıda 0, E15/E16/E18'de 105/83/46. OpenRouter'ın listelediği fiyatla 18 çağrı yaklaşık 0,004 USD (tahmin, fatura değil).
 - Beklenen değerler değiştirilmedi ve bu koşulardan sonra bölümleme veya ayar değiştirilmedi.
 
-Kök neden analizi ve insan incelemesi henüz yapılmadı; her sorunun `human_review` alanı `pending`.
+Bu koşular sonraki kontrol değişikliğinden önceki runner ile yapıldı: kaynak kontrolü alıntıyı belgenin tamamında arıyor ve kaynak göstermeyen cevapları da geçti sayıyordu; alıntı modunda ret ve claim kontrolleri de sayılıyordu. Raporlar üretildikleri gibi duruyor.
+
+### Bölümleme, prompt ve kontrol değişikliklerinden sonraki koşular
+
+Değişiklikler: iade kuralının tek bölümde toplanması (K11, ölçüm K17), prompt `answer-v2` (K24), tek bağlam bütçesi (`TOP_K` bölümün tamamı modele gider), bölüm düzeyinde kaynak kontrolü ve E15'in sürüm 2 metni (soru setinin SHA-256'sı koşu bilgisinde). Koşular commit `545f0d0` üzerinde, temiz çalışma ağacıyla yapıldı; corpus fingerprint `01385416…`, 29 bölüm. Alıntı modu bir kez, üretken mod aynı ayarlarla iki kez koşuldu:
+- [`eval/results/20261004-221837-evidence_only/report.md`](../eval/results/20261004-221837-evidence_only/report.md)
+- [`eval/results/20261004-221838-generative/report.md`](../eval/results/20261004-221838-generative/report.md) (üretken #1)
+- [`eval/results/20261004-221915-generative/report.md`](../eval/results/20261004-221915-generative/report.md) (üretken #2)
+
+| Ölçüm (üretken) | İlk koşu | #1 | #2 |
+|---|---|---|---|
+| HTTP | 18/18 | 18/18 | 18/18 |
+| Beklenen durum | 14/18 | 17/18 | 17/18 |
+| Beklenen bölüm ilk 4'te | 12/15 | 15/15 | 15/15 |
+| Beklenen bölüm kaynak gösterildi | 12/15 | 15/15 | 15/15 |
+| Çok kaynaklı soru (E18): ilk 4 / kaynak | 0/1 / 0/1 | 1/1 / 1/1 | 1/1 / 1/1 |
+| Sürüm kararı | 6/6 | 6/6 | 6/6 |
+| Kaynak geçerliliği | 18/18 (eski kontrol) | 15/15 | 16/16 |
+| Cevaplanabilir soruda `insufficient_evidence` dönmedi | 14/15 | 15/15 | 15/15 |
+| Cevapsız soruda claim üretilmedi | 2/3 | 3/3 | 2/3 |
+| Gerekli kalıp | 12/15 | 15/15 | 13/15 |
+| Yasak kalıp yok | 10/10 | 10/10 | 10/10 |
+
+Alıntı modu: HTTP 18/18, beklenen durum 15/15, beklenen bölüm ilk 4'te 15/15 (ilk koşuda 12/15), sürüm kararı 6/6, kaynak geçerliliği 18/18.
+
+Başarısız otomatik kontroller (liste `checks.json`'dan):
+- Üretken #1: beklenen durum E14 (`partial`, beklenen `answered`).
+- Üretken #2: beklenen durum ve cevapsız soruda claim E12 (`partial`, beklenen `insufficient_evidence`); gerekli kalıp E05, E07.
+
+İki üretken koşu aynı commit ve ayarlarla 18 sorunun 16'sında aynı HTTP durumunu ve iş durumunu verdi (farklı: E12, E14); gösterilen kaynaklar da eşleşince 12/18 (aynı durumla farklı kaynak: E02, E05, E06, E07). Üretim 1,2–4,0 sn; giriş 1.855–1.973, çıktı 45–276 token.
+
+Beklenen değerler değiştirilmedi; yalnızca E15'in soru metni sürümlendi. Kök neden analizi ve insan incelemesi henüz yapılmadı; her sorunun `human_review` alanı `pending`.
 
 ## Bilinen sınırlar
 
@@ -447,15 +480,15 @@ Kök neden analizi ve insan incelemesi henüz yapılmadı; her sorunun `human_re
 - **Soru uzunluğu.** Sorgu da 512 token sınırına tabidir. Sınırı aşan soru kesilmez, 400 `invalid_request` olur. 2.000 karakterlik sınır bunu garanti etmez: normal Türkçe metinde 2.000 karakter yaklaşık 470 token tutarken 600 emoji sınırı aşıyor (gerçek tokenizer ile ölçüldü).
 - **Skorların taşınabilirliği.** Skorlar farklı CPU mimarilerinde son basamaklarda (yaklaşık 1e-6) farklı çıkabilir. Eşit skorda `chunk_id` sıralaması yalnızca birebir eşit skorlar için devreye girer.
 - **Küçük ölçüm.** Eşik ve bölümleme kararları 9 geliştirme sorusuna dayanır. 18 soruluk değerlendirme de aynı kurgu korpus için yazılmış küçük bir Türkçe regresyon setidir; genellenebilir bir doğruluk oranı vermez.
-- **Beklenen bölüm her zaman ilk 4'te değil.** Değerlendirmede 15 cevaplanabilir sorunun 3'ünde (E15, E16, E18) beklenen `sure` bölümü ilk 4'te yoktu. K17'de öngörülen risk bu; kök neden incelemesi ve olası bölümleme düzeltmesi bekliyor. Düzeltme yapılırsa önce geliştirme sorularıyla ölçülür.
-- **Canlı üretim tek bir 18 soruluk koşuyla değerlendirildi.** Her üretken istek ücretli bir model çağrısıdır; bu koşuda üretim 1,3–2,8 sn sürdü. Model çıktısı deterministik değildir; aynı koşu tekrarlansa bazı durumlar değişebilir ve tek koşu bunun ölçüsünü vermez. Sonuçlara insan incelemesi henüz yapılmadı (`pending`). Eval'dan önceki deneme çağrılarından ikisi, OpenRouter'da etkin olan sıfır veri saklama (ZDR) kısıtı OpenAI uç noktasını dışladığı için 404 aldı; servis bunu doğru biçimde 503 `provider_unavailable` olarak döndü, "belgede yok" saymadı.
+- **Retrieval bu küçük sette tam, genelde garanti değil.** İlk koşuda 15 cevaplanabilir sorunun 3'ünde (E15, E16, E18) beklenen `sure` bölümü ilk 4'te yoktu; bölümleme değişikliğinden sonra iki modda da 15/15. Ölçüm 9 geliştirme ve 18 değerlendirme sorusuna dayanır; başka ifadelerde aynı sorun yeniden görülebilir (K11, K17).
+- **Canlı üretim deterministik değil.** Her üretken istek ücretli bir model çağrısıdır. Aynı commit ve ayarlarla iki üretken koşu 18 sorunun 2'sinde farklı iş durumu, 4'ünde farklı kaynak kümesi verdi; birkaç koşu bir başarı oranı vermez. Sonuçlara insan incelemesi henüz yapılmadı (`pending`). Eval'dan önceki deneme çağrılarından ikisi, OpenRouter'da etkin olan sıfır veri saklama (ZDR) kısıtı OpenAI uç noktasını dışladığı için 404 aldı; servis bunu doğru biçimde 503 `provider_unavailable` olarak döndü, "belgede yok" saymadı.
 - **Model sürümü logda takma adla görünür.** OpenRouter yanıtta modeli `openai/gpt-6-luna` olarak bildiriyor, tarihli slug'ı değil. Hangi snapshot'ın kullanıldığı ancak OpenRouter'ın public models API'sinden (o gün `openai/gpt-6-luna-20260922`) ayrıca kaydedilebilir.
 - **Enjeksiyon dayanıklılığı kanıtlanmadı.** Testler, talimat içeren soru ve belgenin modele yalnızca veri olarak gittiğini ve sunucu doğrulamasının sürdüğünü gösterir; canlı modelin talimata uyup uymadığını göstermez.
 - **Kaynak doğrulaması anlamsal değildir** (K25). Doğru bölüme atıf yapan yanlış bir süre geçebilir; bunu yalnızca eval ve insan incelemesi yakalar.
 - **Retrieval kaçırması "belgede yok" gibi görünür.** İlk k'ya girmeyen bir bölümü model hiç görmez; o konuyu eksik konu olarak yazar. Sunucunun cümlesi "bu istekteki belgelerle yanıtlanamayan konular" der; yine de okuyan kişi retrieval hatasını gerçek bilgi yokluğundan ayıramaz. Teşhis için `retrieved_chunk_ids` ve logdaki skorlar gerekir.
 - **Belgeler arası anlamsal denetim yok.** Loader yalnızca yapıyı ve metadata tutarlılığını denetler. Belge gövdesinde yanlış yazılmış bir kuralı (ör. D04'te "30" yerine "40") veya metadata ile ilişkilendirilmemiş iki belge arasındaki çelişkiyi yakalamaz; gövdedeki tarih ifadeleri de metadata ile karşılaştırılmaz.
 - **Belgeyi yerinde düzenlemek sürümü değiştirmez.** Bir provada `D04#sure` metni yerinde değiştirildi: fingerprint değişti, indeks yeniden üretildi, yeni alıntı döndü; ama cevaptaki `version` yine `2.0` idi. Hangi metnin kullanıldığını o zaman yalnızca fingerprint (readiness, eval metadata) gösterir. Politika değişikliği yeni bir sürüm ve tarihlerle yapılmalıdır; yerinde düzenleme yazım düzeltmesi içindir.
-- **Tarihsel soru `as_of` ister.** Serbest metinden tarih okunmaz. Soru başka bir tarihi soruyor ama istek o tarihe ayarlı değilse modelin `as_of_required` ile bunu söylemesi beklenir; bu davranış prompt'a bağlıdır ve canlı olarak ayrıca ölçülmedi (E16 doğru `as_of` ile soruldu).
+- **Tarihsel soru `as_of` ister.** Serbest metinden tarih okunmaz. Soru başka bir tarihi soruyor ama istek o tarihe ayarlı değilse modelin `as_of_required` ile bunu söylemesi beklenir; bu davranış prompt'a bağlıdır. Değerlendirme setinde böyle bir soru yok (E16 doğru `as_of` ile sorulur); teslim öncesi uçtan uca denemede `as_of` verilmeden "1 Haziran 2026'da iade süresi neydi?" sorusu `as_of_required` döndü. Bu tek gözlemdir, oran değildir.
 - **Üretim için eksik olanlar.** Kimlik doğrulama ve belge bazlı yetkilendirme yoktur; kapsam filtresi yetkilendirme değildir. Tenant izolasyonu, TLS ve ağ kontrolleri, saklama ve silme politikası, sağlayıcı ve veri aktarımı değerlendirmesi, güvenlik incelemesi ve yük/ölçek testi yapılmadı.
 - **ASCII olmayan HTTP başlığı.** Kestrel, ASCII olmayan bir başlık değerini (ör. `X-Request-ID: accept.çok`) uygulama koduna ulaşmadan gövdesiz 400 ile reddeder; bu durumda hata sözleşmesi ve request ID dönmez (temiz kopya denetiminde görüldü).
 - **rag durduktan sonraki ilk çağrı.** Temiz kopya provasında rag konteyneri korpus hatasıyla durduktan sonra ilk `/health/ready` çağrısı, `rag` adının çözümlenmesi 3 sn'yi aştığı için 504 `upstream_timeout` döndü; sonraki çağrılar hemen 503 `upstream_unavailable` döndü. "Durdu" ile "yavaş" ayrımı `docker compose ps` ve loglarla yapılır.

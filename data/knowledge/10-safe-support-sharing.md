@@ -20,8 +20,8 @@ Bu belge, destek görüşmeleri ve destek talepleri sırasında hangi bilgilerin
 
 ## Paylaşılmayacak bilgiler ve hata görselleri {#paylasim}
 
-Parola ve tek kullanımlık doğrulama kodu (OTP) destek personeliyle veya başka biriyle paylaşılmaz; destek personeli de bu bilgileri istemez. Hata ekran görüntüsü veya fotoğrafı paylaşılmadan önce görseldeki kişisel bilgiler, örneğin ad, telefon numarası ve e-posta adresi, gizlenir.
+Parola ve tek kullanımlık doğrulama kodu (OTP), destek görüşmesinde veya destek talebinde destek personeliyle ya da başka biriyle paylaşılmaz; destek personeli de bu bilgileri istemez. Hata ekran görüntüsü veya fotoğrafı paylaşılmadan önce görseldeki kişisel bilgiler, örneğin ad, telefon numarası ve e-posta adresi, gizlenir.
 
 ## Müşteri paylaşmak isterse {#musteri-istegi}
 
-Müşteri parolasını veya OTP kodunu göndermeye çalışırsa bunu göndermemesi gerektiğini nazikçe söyleyin. Kişisel bilgileri gizlenmemiş bir görsel gönderilmek istenirse önce bu bilgilerin gizlenmesini isteyin.
+Müşteri parolasını veya OTP kodunu göndermeye, yazmaya ya da görüşmede okumaya çalışırsa bunu paylaşmaması gerektiğini nazikçe söyleyin. Kişisel bilgileri gizlenmemiş bir görsel gönderilmek istenirse önce bu bilgilerin gizlenmesini isteyin.

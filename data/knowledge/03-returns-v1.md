@@ -24,4 +24,4 @@ Türkiye'deki kurumsal (B2B) müşteriler, MH-10 temsilci kulaklıkları için i
 
 ## İade kargosu {#kargo}
 
-İade kargosunun bedelini müşteri öder.
+İade kargosunun bedelini müşteri öder: ürün şirkete geri gönderilirken oluşan kargo ücreti müşteriye aittir. Müşteriye bu bilgi iade talebi açılırken verilir; böylece müşteri ürünü göndermeden önce kargo bedelinin kendisine ait olduğunu bilir.

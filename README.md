@@ -4,7 +4,7 @@ Kurgu şirket **Yardım bende Destek Teknolojileri**'nin destek çalışanına, 
 
 > Tamamen kurgu verilerle hazırlanmış değerlendirme demosudur. Üretim güvenliği veya KVKK/BDDK uyumu iddia edilmez.
 
-**Durum:** İki mod da uçtan uca çalışıyor ve Docker Compose ile birlikte ayağa kalkıyor. Alıntı modu (`evidence_only`) anahtarsız çalışır ve model çağırmaz. Üretken mod (kaynaklı LLM cevabı ve sunucu tarafı kaynak doğrulaması) varsayılan testlerde sahte model/HTTP katmanıyla, canlı olarak da 18 soruluk değerlendirmenin bir üretken koşusuyla denendi. O koşuda 18 sorunun 14'ü beklenen durumu verdi; üç soruda (E15, E16, E18) beklenen bölüm arama sonucunun ilk 4'ünde değildi. Otomatik kontrollerin sonuçları: [`docs/decisions.md`](docs/decisions.md), "Değerlendirme bulguları". Kök neden analizi ve insan incelemesi henüz yapılmadı.
+**Durum:** İki mod da uçtan uca çalışıyor ve Docker Compose ile birlikte ayağa kalkıyor. Alıntı modu (`evidence_only`) anahtarsız çalışır ve model çağırmaz. Üretken mod (kaynaklı LLM cevabı ve sunucu tarafı kaynak doğrulaması) varsayılan testlerde sahte model/HTTP katmanıyla, canlı olarak da 18 soruluk değerlendirmenin üretken koşularıyla denendi. Bölümleme ve prompt değişikliğinden sonraki iki koşuda 18 sorunun 17'si beklenen durumu verdi ve beklenen bölüm 15 cevaplanabilir sorunun 15'inde ilk 4'teydi (ilk koşuda 14/18 ve 12/15). Otomatik kontrollerin sonuçları ve eski koşuyla farkı: [`docs/decisions.md`](docs/decisions.md), "Değerlendirme bulguları". Kök neden analizi ve insan incelemesi henüz yapılmadı.
 
 ## Mimari akış
 
@@ -144,7 +144,7 @@ docker compose logs --no-log-prefix rag | grep '"eval\.<run_id>\.' > eval/result
 
 Her koşu `eval/results/<run_id>/` altına `actual.jsonl` (her HTTP cevabı, hatalar dâhil), `checks.json` (koşu bilgileri ve kontroller) ve `report.md` (beklenen ve gerçek karşılaştırması) yazar. `generative` koşu, stack'te anahtar yoksa hiç istek göndermeden durur. `docker compose logs` yalnızca çalışan konteynerlerin logunu gösterir; log satırları konteyner yeniden oluşturulmadan önce alınmalıdır.
 
-Commit edilen koşular: alıntı modu ve üretken mod, her biri bir kez ([`docs/decisions.md`](docs/decisions.md), "Değerlendirme bulguları"; her sorunun beklenen ve gerçek çıktısı ilgili `report.md`'de). Üretken koşu canlı modelle bir kez yapıldı; tekrarlanmadı.
+Commit edilen koşular: ilk koşular (alıntı ve üretken, birer kez) ve bölümleme/prompt değişikliğinden sonraki koşular (alıntı bir, üretken iki kez); eski sonuçlar silinmedi ([`docs/decisions.md`](docs/decisions.md), "Değerlendirme bulguları"; her sorunun beklenen ve gerçek çıktısı ilgili `report.md`'de).
 
 ## Belgeler değişince yeniden indeksleme
 
@@ -170,10 +170,10 @@ Commit edilen koşular: alıntı modu ve üretken mod, her biri bir kez ([`docs/
 ## Sınırlar
 
 - Kaynak doğrulaması anlamsal değildir: doğru bölüme atıf yapan yanlış bir sayı geçebilir. Bunu yalnızca değerlendirme ve insan incelemesi yakalar.
-- Skor eşiği kapalıdır. Değerlendirmede üç soruda (E15, E16, E18) beklenen bölüm ilk 4'te değildi; nedeni henüz incelenmedi.
+- Skor eşiği kapalıdır; cevapsız sorularda da aday bölüm döner. Retrieval bu küçük sette 15/15, farklı ifadelerde beklenen bölüm yine ilk 4'ün dışında kalabilir.
 - Tarihsel cevap için `as_of` istekte verilmelidir; sorudaki tarih okunmaz.
 - Kimlik doğrulama, belge bazlı yetkilendirme, TLS, saklama politikası ve yük testi yoktur; kapsam filtresi yetkilendirme değildir.
-- Canlı üretim tek bir koşuyla ölçüldü ve sonuçlar insan tarafından incelenmedi.
+- Canlı üretim deterministik değildir (aynı ayarlarla iki koşu bazı sorularda farklı durum verdi) ve sonuçlar insan tarafından incelenmedi.
 
 Tam liste ve gerekçeler: [`docs/decisions.md`](docs/decisions.md), "Bilinen sınırlar".
 

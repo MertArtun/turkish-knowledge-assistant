@@ -24,7 +24,7 @@ Kurgu bir şirketin destek çalışanına, onaylı bilgi belgelerine dayanarak T
 
 ## 2. Korpus
 
-Şirket: **Yardım bende Destek Teknolojileri** (tamamen hayalî). Tüm süreler ve koşullar demo kurgusudur; her dosyanın frontmatter'ı `# DEMO KURGUSU` YAML yorumuyla başlar. Her belgenin kapsamı `country=TR`, `customer_type=B2B`, `product=MH-10`. Belgeler kısadır; uzunluk için yeni iş kuralı eklenmez. Zorunlu bölümlerin yanında yalnızca konuyu açıklayan bölümler vardır (ör. `kullanim`; iade belgelerinde `uygulama`). Bir kuralın sayısı, başlangıç noktası ve kapsamı aynı bölümde durur.
+Şirket: **Yardım bende Destek Teknolojileri** (tamamen hayalî). Tüm süreler ve koşullar demo kurgusudur; her dosyanın frontmatter'ı `# DEMO KURGUSU` YAML yorumuyla başlar. Her belgenin kapsamı `country=TR`, `customer_type=B2B`, `product=MH-10`. Belgeler bölüm başlıkları dâhil 97–138 kelimedir; uzunluk için yeni iş kuralı eklenmez. Zorunlu bölümlerin yanında yalnızca konuyu açıklayan bölümler vardır (ör. `kullanim`; iade belgelerinde `uygulama`). Bir kuralın sayısı, başlangıç noktası, kapsamı ve hangi durumda ya da kanalda uygulandığı aynı bölümde durur; `kullanim` bölümü yalnızca belgenin konusunu söyler.
 
 | ID | Dosya | procedure_id | Zorunlu bölümler (section_id: içerik) | Sürüm / geçerlilik |
 |---|---|---|---|---|
@@ -35,7 +35,7 @@ Kurgu bir şirketin destek çalışanına, onaylı bilgi belgelerine dayanarak T
 | D05 | `05-refund-payment.md` | `refund-payment` | `bedel`: iade kabulünden sonra 5 iş günü; kargoya verme tarihinden başlamaz | 1.0, 2026-01-01 → açık |
 | D06 | `06-support-ticket.md` | `support-ticket` | `alanlar`: seri numarası, varsa hata kodu, yeniden üretme adımları | 1.0, 2026-01-01 → açık |
 | D07 | `07-priority-sla.md` | `priority-sla` | `p1`: tüm temsilcileri durduran olay P1; ilk yanıt hedefi 2 çalışma saati, çözüm garantisi değil | 1.0, 2026-01-01 → açık |
-| D08 | `08-support-hours.md` | `support-hours` | `saatler`: hafta içi 09.00–18.00, Europe/Istanbul | 1.0, 2026-01-01 → açık |
+| D08 | `08-support-hours.md` | `support-hours` | `saatler`: hafta içi 09.00–18.00, Europe/Istanbul; hafta sonu bu saatlerin dışında | 1.0, 2026-01-01 → açık |
 | D09 | `09-account-access.md` | `account-access` | `sifre`: kayıtlı e-postaya parola sıfırlama bağlantısı | 1.0, 2026-01-01 → açık |
 | D10 | `10-safe-support-sharing.md` | `safe-support-sharing` | `paylasim`: parola/OTP paylaşılmaz; hata görsellerindeki kişisel bilgiler gizlenir | 1.0, 2026-01-01 → açık |
 
@@ -174,7 +174,7 @@ Uygulama: `src/rag_service/app/service.py::Assistant.ask`. Sıra:
 
 Uygulama: `src/rag_service/app/generation.py`, akış `service.py::Assistant._generate`.
 
-- **Modele gidenler:** sistem talimatı (`app/prompts/answer.txt`, sürüm `PROMPT_VERSION`) ve yalnızca veri içeren bir JSON kullanıcı mesajı: `effective_as_of`, `effective_scope`, `question`, `sources[{id, heading_path, text}]`. `sources`, bu isteğin sürüm/kapsam görünümünden gelen en fazla 4 bölümdür; eski sürüm metni, korpusun geri kalanı, geçmiş, ortam değişkenleri veya kimlik gitmez. Her bölüm ve soru embedding modelinin 512 token sınırı içindedir; bağlam bu yüzden sınırlıdır.
+- **Modele gidenler:** sistem talimatı (`app/prompts/answer.txt`, sürüm `PROMPT_VERSION`) ve yalnızca veri içeren bir JSON kullanıcı mesajı: `effective_as_of`, `effective_scope`, `question`, `sources[{id, heading_path, text}]`. `sources`, bu isteğin sürüm/kapsam görünümünden getirilen `TOP_K` bölümdür (varsayılan 4, en fazla 8); eski sürüm metni, korpusun geri kalanı, geçmiş, ortam değişkenleri veya kimlik gitmez. Her bölüm ve soru embedding modelinin 512 token sınırı içindedir; bağlam bu yüzden sınırlıdır.
 - **Model çağrısı:** OpenAI Responses API, resmî Python SDK'sı, `responses.parse` ile katı JSON şeması (yapılandırılmış çıktı), `store=false`, `max_output_tokens=1000`, `reasoning.effort=low`, `temperature` yok. İstemci zaman aşımı `LLM_TIMEOUT_SECONDS`, otomatik retry yok. SDK'nın zaman aşımı bağlantı/okuma/yazma aşaması başına işlediği için aynı süre ayrıca bütün çağrının üst sınırıdır (`Assistant._call_model`); dolarsa `generation_timeout`. `OPENAI_BASE_URL` OpenRouter ise istek `provider: {only: ["openai"], allow_fallbacks: false, require_parameters: true}` ile OpenAI'ın kendi uç noktasına sabitlenir; bu alan api.openai.com'a hiç gönderilmez.
 - **Model çıktısı:** `status` (`answered` | `partial` | `insufficient_evidence`), `claims[{text, source_chunk_ids}]`, `missing_topics[]`, `reason_code` (`not_in_documents` | `unsupported_scope` | `as_of_required` | `null`). Başlık, sürüm, tarih, skor veya alıntı alanı yoktur.
 - **Sunucu doğrulaması** (`validate_answer`; ihlal varsa hiçbir şey silinip düzeltilmez, 502 `invalid_generation_output`):
@@ -279,9 +279,9 @@ Uygulama: `eval/run_eval.py` (yalnızca Python standart kütüphanesi; servis ko
 - `required_facts`, `forbidden_facts`: `{fact, pattern}` listeleri. `fact` insan incelemesi içindir. `pattern` doluysa claim metinlerinde büyük/küçük harf duyarsız aranan düzenli ifadedir; `null` ise yalnızca insan inceler.
 - `expected_source_ids`: cevabın dayanması gereken bölümler; cevapsız sorularda `[]`.
 - `expected_versions`: `{procedure_id: {selected, excluded: {doc_id: reason}}}`; yalnızca sürüm kararının ölçüldüğü sorularda dolu.
-- `revision`, `revisions` (isteğe bağlı): soru veya rubrik değiştirilirse `revision` artar, önceki metin ve değişikliğin nedeni `revisions` listesinde kalır; eski koşuların sonuçları eski metnin sonucu olarak okunur. Şu an yalnızca E15 sürüm 2'dedir: ilk metin konusunu (iade) söylemiyordu.
+- `revision`, `revisions` (isteğe bağlı): soru veya rubrik değiştirilirse `revision` artar, önceki metin ve değişikliğin nedeni `revisions` listesinde kalır; eski koşuların sonuçları eski metnin sonucu olarak okunur. Şu an E15 (soru metni) ile E05, E06 ve E08 (birer gerekli bilgi kalıbı) sürüm 2'dedir: E15'in ilk metni konusunu (iade) söylemiyordu; üç kalıp, olguyu belgenin kendi ifadesiyle (ör. D08'in hafta içi tanımı "pazartesiden cumaya") yazan doğru claim'leri bulunamadı sayıyordu.
 
-Ayrıca 9 geliştirme sorusu `eval/dev_questions.jsonl` içindedir (`id`, `category`, `request`, `expected_source_ids`); eşik ve bölümleme kararları önce onlarda denenir (`src/rag_service/measure_retrieval.py`).
+Ayrıca 20 geliştirme sorusu `eval/dev_questions.jsonl` içindedir (`id`, `category`, `request`, `expected_source_ids`); her belgenin zorunlu bölümü en az bir soruyla ölçülür. Eşik ve bölümleme kararları önce onlarda denenir (`src/rag_service/measure_retrieval.py`).
 
 **Koşu.**
 - Runner .NET'in `POST /api/ask` ucunu çağırır. İstek başına timeout 60 sn'dir, .NET'in 45 sn'sinden uzun; böylece yavaş bir cevap istemci timeout'u değil API'nin kendi 504'ü olarak kaydedilir. Her soruya `X-Request-ID: eval.<run_id>.<id>` gönderilir; servis loglarındaki satırlar bu ID ile bulunur.
@@ -308,7 +308,7 @@ Birden fazla beklenen bölümü olan sorular (E18) için `retrieval` ve `citatio
 
 **İnceleme.** İnsan inceleme sütunu her soruda `pending` başlar ve yalnızca gerçekten incelenen sorularda değişir. Başarısız her kontrol için kök neden sınıfı: retrieval, versioning, generation, validation, infrastructure veya expected veri hatası. Test geçsin diye beklenen değer değiştirilmez; gerçek bir expected hatası düzeltilirse nedeni yazılır.
 
-**Bütçe.** Anahtar, ağ veya kota yoksa üretken eval `not_run`/`blocked` raporlanır. Bu kapsamda smoke ve eval için toplam en fazla 25 generation çağrısı yapılır; 18 soruluk üretken koşu bir kez çalıştırılır.
+**Bütçe.** Anahtar, ağ veya kota yoksa üretken eval `not_run`/`blocked` raporlanır. İlk değerlendirme için smoke ve eval toplamı en fazla 25 generation çağrısıyla sınırlandı ve üretken koşu bir kez yapıldı. Bölümleme ve prompt değişikliğinden sonra bu sınır kaldırıldı: değişkenliği görmek için üretken koşu aynı ayarlarla iki kez yapıldı. Her koşu kendi `run_id`'si altında kaydedilir; eski sonuçlar silinmez ve koşu sayısı gizlenmez.
 
 ## 8. Kabul kontrol listesi
 
