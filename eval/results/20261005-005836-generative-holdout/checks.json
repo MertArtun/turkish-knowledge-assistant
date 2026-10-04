@@ -1,15 +1,16 @@
 {
   "metadata": {
-    "run_id": "20261005-000524-generative",
-    "started_at": "2026-10-05T00:05:24+03:00",
-    "finished_at": "2026-10-05T00:06:06+03:00",
+    "run_id": "20261005-005836-generative-holdout",
+    "started_at": "2026-10-05T00:58:36+03:00",
+    "finished_at": "2026-10-05T00:59:30+03:00",
     "mode": "generative",
     "api": "http://127.0.0.1:8080",
     "request_timeout_seconds": 60,
-    "question_count": 18,
-    "questions_sha256": "0eacc9cc6eb940799445adcbc915d4b65fba2879c0730885dbc4dfbd12f85a69",
+    "question_count": 26,
+    "questions_file": "eval/holdout_questions.jsonl",
+    "questions_sha256": "3ecb65b4fd130b02fa34f5ca52f45012dc5fd913305c01a4b121812195d59cac",
     "git": {
-      "commit": "c192230f13312109b0091bae1b414eaf749428b6",
+      "commit": "151b8032e05a07b16053925746ea5333e82357a8",
       "dirty": false,
       "dirty_paths": []
     },
@@ -26,30 +27,33 @@
       "min_retrieval_score": null
     },
     "readiness_unchanged": true,
-    "as_of_note": "İsteklerdeki as_of değerlendirilen iş tarihidir (E16 dışında 2026-10-04, E16'da 2026-06-01); gerçek çalıştırma zamanıyla aynı kavram değildir."
+    "as_of_note": "İsteklerdeki as_of değerlendirilen iş tarihidir (2026-10-04 (23 soru), 2026-04-10 (H11), 2026-06-30 (H12), 2026-02-09 (H13)); gerçek çalıştırma zamanıyla aynı kavram değildir."
   },
   "summary": {
     "http": {
-      "passed": 18,
-      "applicable": 18,
+      "passed": 26,
+      "applicable": 26,
       "failed": [],
       "not_evaluable": []
     },
     "status": {
-      "passed": 18,
-      "applicable": 18,
-      "failed": [],
+      "passed": 24,
+      "applicable": 26,
+      "failed": [
+        "H05",
+        "H09"
+      ],
       "not_evaluable": []
     },
     "retrieval": {
-      "passed": 15,
-      "applicable": 15,
+      "passed": 22,
+      "applicable": 22,
       "failed": [],
       "not_evaluable": []
     },
     "citation": {
-      "passed": 15,
-      "applicable": 15,
+      "passed": 22,
+      "applicable": 22,
       "failed": [],
       "not_evaluable": []
     },
@@ -60,57 +64,60 @@
       "not_evaluable": []
     },
     "source_validity": {
-      "passed": 15,
-      "applicable": 15,
+      "passed": 22,
+      "applicable": 22,
       "failed": [],
       "not_evaluable": []
     },
     "no_unnecessary_refusal": {
-      "passed": 15,
-      "applicable": 15,
+      "passed": 22,
+      "applicable": 22,
       "failed": [],
       "not_evaluable": []
     },
     "no_claims_when_unanswerable": {
-      "passed": 3,
-      "applicable": 3,
+      "passed": 4,
+      "applicable": 4,
       "failed": [],
       "not_evaluable": []
     },
     "required_facts": {
-      "passed": 15,
-      "applicable": 15,
-      "failed": [],
+      "passed": 20,
+      "applicable": 22,
+      "failed": [
+        "H04",
+        "H23"
+      ],
       "not_evaluable": []
     },
     "forbidden_facts": {
-      "passed": 10,
-      "applicable": 10,
+      "passed": 12,
+      "applicable": 12,
       "failed": [],
       "not_evaluable": []
     }
   },
   "multi_source_summary": {
     "retrieval": {
-      "passed": 1,
-      "applicable": 1,
+      "passed": 4,
+      "applicable": 4,
       "failed": [],
       "not_evaluable": []
     },
     "citation": {
-      "passed": 1,
-      "applicable": 1,
+      "passed": 4,
+      "applicable": 4,
       "failed": [],
       "not_evaluable": []
     }
   },
   "questions": [
     {
-      "id": "E01",
+      "id": "H01",
       "category": "normal",
-      "request_id": "eval.20261005-000524-generative.E01",
+      "request_id": "eval.20261005-005836-generative-holdout.H01",
       "http_status": 200,
-      "elapsed_ms": 3101,
+      "elapsed_ms": 1313,
       "expected_status": "answered",
       "actual_status": "answered",
       "checks": {
@@ -129,11 +136,11 @@
       "human_review": "doğru"
     },
     {
-      "id": "E02",
+      "id": "H02",
       "category": "normal",
-      "request_id": "eval.20261005-000524-generative.E02",
+      "request_id": "eval.20261005-005836-generative-holdout.H02",
       "http_status": 200,
-      "elapsed_ms": 4038,
+      "elapsed_ms": 1695,
       "expected_status": "answered",
       "actual_status": "answered",
       "checks": {
@@ -152,16 +159,158 @@
       "human_review": "doğru"
     },
     {
-      "id": "E03",
+      "id": "H03",
+      "category": "normal",
+      "request_id": "eval.20261005-005836-generative-holdout.H03",
+      "http_status": 200,
+      "elapsed_ms": 2704,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "doğru"
+    },
+    {
+      "id": "H04",
+      "category": "normal",
+      "request_id": "eval.20261005-005836-generative-holdout.H04",
+      "http_status": 200,
+      "elapsed_ms": 1930,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "fail",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [
+        "required_facts: bulunamadı: İlk yanıt, destek ekibinin olaya verdiği ilk dönüştür."
+      ],
+      "human_review": "doğru (kalıp 'yanıtını' ekini tanımıyor; beklenen veri)"
+    },
+    {
+      "id": "H05",
+      "category": "normal",
+      "request_id": "eval.20261005-005836-generative-holdout.H05",
+      "http_status": 200,
+      "elapsed_ms": 1600,
+      "expected_status": "answered",
+      "actual_status": "partial",
+      "checks": {
+        "http": "pass",
+        "status": "fail",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [
+        "status: partial, beklenen answered"
+      ],
+      "human_review": "kabul edilebilir: cevap doğru; D08#saatler ilk 4'te olmadığı için saatleri eksik konu olarak ekledi (retrieval)"
+    },
+    {
+      "id": "H06",
+      "category": "normal",
+      "request_id": "eval.20261005-005836-generative-holdout.H06",
+      "http_status": 200,
+      "elapsed_ms": 2472,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "pass"
+      },
+      "problems": [],
+      "human_review": "doğru"
+    },
+    {
+      "id": "H07",
+      "category": "normal",
+      "request_id": "eval.20261005-005836-generative-holdout.H07",
+      "http_status": 200,
+      "elapsed_ms": 1512,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "doğru"
+    },
+    {
+      "id": "H08",
+      "category": "normal",
+      "request_id": "eval.20261005-005836-generative-holdout.H08",
+      "http_status": 200,
+      "elapsed_ms": 1735,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "pass"
+      },
+      "problems": [],
+      "human_review": "doğru"
+    },
+    {
+      "id": "H09",
       "category": "version_conflict",
-      "request_id": "eval.20261005-000524-generative.E03",
+      "request_id": "eval.20261005-005836-generative-holdout.H09",
       "http_status": 200,
-      "elapsed_ms": 2427,
+      "elapsed_ms": 3010,
       "expected_status": "answered",
-      "actual_status": "answered",
+      "actual_status": "partial",
       "checks": {
         "http": "pass",
-        "status": "pass",
+        "status": "fail",
         "retrieval": "pass",
         "citation": "pass",
         "version": "pass",
@@ -171,245 +320,17 @@
         "required_facts": "pass",
         "forbidden_facts": "pass"
       },
-      "problems": [],
-      "human_review": "doğru"
+      "problems": [
+        "status: partial, beklenen answered"
+      ],
+      "human_review": "kabul edilebilir: 30 takvim günü kuralı doğru; iki tarih arasını bilerek hesaplamıyor (generation, tasarım tercihi)"
     },
     {
-      "id": "E04",
+      "id": "H10",
       "category": "version_conflict",
-      "request_id": "eval.20261005-000524-generative.E04",
+      "request_id": "eval.20261005-005836-generative-holdout.H10",
       "http_status": 200,
-      "elapsed_ms": 2675,
-      "expected_status": "answered",
-      "actual_status": "answered",
-      "checks": {
-        "http": "pass",
-        "status": "pass",
-        "retrieval": "pass",
-        "citation": "pass",
-        "version": "pass",
-        "source_validity": "pass",
-        "no_unnecessary_refusal": "pass",
-        "no_claims_when_unanswerable": "n/a",
-        "required_facts": "pass",
-        "forbidden_facts": "pass"
-      },
-      "problems": [],
-      "human_review": "doğru (etiketi şirketin sağladığı açıkça söylenmemiş)"
-    },
-    {
-      "id": "E05",
-      "category": "normal",
-      "request_id": "eval.20261005-000524-generative.E05",
-      "http_status": 200,
-      "elapsed_ms": 1566,
-      "expected_status": "answered",
-      "actual_status": "answered",
-      "checks": {
-        "http": "pass",
-        "status": "pass",
-        "retrieval": "pass",
-        "citation": "pass",
-        "version": "n/a",
-        "source_validity": "pass",
-        "no_unnecessary_refusal": "pass",
-        "no_claims_when_unanswerable": "n/a",
-        "required_facts": "pass",
-        "forbidden_facts": "pass"
-      },
-      "problems": [],
-      "human_review": "doğru"
-    },
-    {
-      "id": "E06",
-      "category": "normal",
-      "request_id": "eval.20261005-000524-generative.E06",
-      "http_status": 200,
-      "elapsed_ms": 2341,
-      "expected_status": "answered",
-      "actual_status": "answered",
-      "checks": {
-        "http": "pass",
-        "status": "pass",
-        "retrieval": "pass",
-        "citation": "pass",
-        "version": "n/a",
-        "source_validity": "pass",
-        "no_unnecessary_refusal": "pass",
-        "no_claims_when_unanswerable": "n/a",
-        "required_facts": "pass",
-        "forbidden_facts": "n/a"
-      },
-      "problems": [],
-      "human_review": "doğru (sorulmayan ama kaynaklı bir güvenlik notu eklenmiş)"
-    },
-    {
-      "id": "E07",
-      "category": "normal",
-      "request_id": "eval.20261005-000524-generative.E07",
-      "http_status": 200,
-      "elapsed_ms": 1580,
-      "expected_status": "answered",
-      "actual_status": "answered",
-      "checks": {
-        "http": "pass",
-        "status": "pass",
-        "retrieval": "pass",
-        "citation": "pass",
-        "version": "n/a",
-        "source_validity": "pass",
-        "no_unnecessary_refusal": "pass",
-        "no_claims_when_unanswerable": "n/a",
-        "required_facts": "pass",
-        "forbidden_facts": "n/a"
-      },
-      "problems": [],
-      "human_review": "doğru"
-    },
-    {
-      "id": "E08",
-      "category": "normal",
-      "request_id": "eval.20261005-000524-generative.E08",
-      "http_status": 200,
-      "elapsed_ms": 2090,
-      "expected_status": "answered",
-      "actual_status": "answered",
-      "checks": {
-        "http": "pass",
-        "status": "pass",
-        "retrieval": "pass",
-        "citation": "pass",
-        "version": "n/a",
-        "source_validity": "pass",
-        "no_unnecessary_refusal": "pass",
-        "no_claims_when_unanswerable": "n/a",
-        "required_facts": "pass",
-        "forbidden_facts": "n/a"
-      },
-      "problems": [],
-      "human_review": "doğru"
-    },
-    {
-      "id": "E09",
-      "category": "normal",
-      "request_id": "eval.20261005-000524-generative.E09",
-      "http_status": 200,
-      "elapsed_ms": 2455,
-      "expected_status": "answered",
-      "actual_status": "answered",
-      "checks": {
-        "http": "pass",
-        "status": "pass",
-        "retrieval": "pass",
-        "citation": "pass",
-        "version": "n/a",
-        "source_validity": "pass",
-        "no_unnecessary_refusal": "pass",
-        "no_claims_when_unanswerable": "n/a",
-        "required_facts": "pass",
-        "forbidden_facts": "n/a"
-      },
-      "problems": [],
-      "human_review": "doğru (sorulmayan ama kaynaklı bir güvenlik notu eklenmiş)"
-    },
-    {
-      "id": "E10",
-      "category": "normal",
-      "request_id": "eval.20261005-000524-generative.E10",
-      "http_status": 200,
-      "elapsed_ms": 1614,
-      "expected_status": "answered",
-      "actual_status": "answered",
-      "checks": {
-        "http": "pass",
-        "status": "pass",
-        "retrieval": "pass",
-        "citation": "pass",
-        "version": "n/a",
-        "source_validity": "pass",
-        "no_unnecessary_refusal": "pass",
-        "no_claims_when_unanswerable": "n/a",
-        "required_facts": "pass",
-        "forbidden_facts": "n/a"
-      },
-      "problems": [],
-      "human_review": "doğru"
-    },
-    {
-      "id": "E11",
-      "category": "unanswerable",
-      "request_id": "eval.20261005-000524-generative.E11",
-      "http_status": 200,
-      "elapsed_ms": 2136,
-      "expected_status": "insufficient_evidence",
-      "actual_status": "insufficient_evidence",
-      "checks": {
-        "http": "pass",
-        "status": "pass",
-        "retrieval": "n/a",
-        "citation": "n/a",
-        "version": "n/a",
-        "source_validity": "n/a",
-        "no_unnecessary_refusal": "n/a",
-        "no_claims_when_unanswerable": "pass",
-        "required_facts": "n/a",
-        "forbidden_facts": "pass"
-      },
-      "problems": [],
-      "human_review": "doğru"
-    },
-    {
-      "id": "E12",
-      "category": "unanswerable",
-      "request_id": "eval.20261005-000524-generative.E12",
-      "http_status": 200,
-      "elapsed_ms": 2236,
-      "expected_status": "insufficient_evidence",
-      "actual_status": "insufficient_evidence",
-      "checks": {
-        "http": "pass",
-        "status": "pass",
-        "retrieval": "n/a",
-        "citation": "n/a",
-        "version": "n/a",
-        "source_validity": "n/a",
-        "no_unnecessary_refusal": "n/a",
-        "no_claims_when_unanswerable": "pass",
-        "required_facts": "n/a",
-        "forbidden_facts": "pass"
-      },
-      "problems": [],
-      "human_review": "doğru"
-    },
-    {
-      "id": "E13",
-      "category": "unanswerable",
-      "request_id": "eval.20261005-000524-generative.E13",
-      "http_status": 200,
-      "elapsed_ms": 1474,
-      "expected_status": "insufficient_evidence",
-      "actual_status": "insufficient_evidence",
-      "checks": {
-        "http": "pass",
-        "status": "pass",
-        "retrieval": "n/a",
-        "citation": "n/a",
-        "version": "n/a",
-        "source_validity": "n/a",
-        "no_unnecessary_refusal": "n/a",
-        "no_claims_when_unanswerable": "pass",
-        "required_facts": "n/a",
-        "forbidden_facts": "pass"
-      },
-      "problems": [],
-      "human_review": "doğru"
-    },
-    {
-      "id": "E14",
-      "category": "paraphrase",
-      "request_id": "eval.20261005-000524-generative.E14",
-      "http_status": 200,
-      "elapsed_ms": 1731,
+      "elapsed_ms": 3604,
       "expected_status": "answered",
       "actual_status": "answered",
       "checks": {
@@ -428,11 +349,172 @@
       "human_review": "doğru"
     },
     {
-      "id": "E15",
+      "id": "H11",
+      "category": "historical_version",
+      "request_id": "eval.20261005-005836-generative-holdout.H11",
+      "http_status": 200,
+      "elapsed_ms": 2211,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "pass",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "pass"
+      },
+      "problems": [],
+      "human_review": "doğru"
+    },
+    {
+      "id": "H12",
+      "category": "historical_version",
+      "request_id": "eval.20261005-005836-generative-holdout.H12",
+      "http_status": 200,
+      "elapsed_ms": 2919,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "pass",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "pass"
+      },
+      "problems": [],
+      "human_review": "doğru"
+    },
+    {
+      "id": "H13",
+      "category": "historical_version",
+      "request_id": "eval.20261005-005836-generative-holdout.H13",
+      "http_status": 200,
+      "elapsed_ms": 1594,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "pass",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "pass"
+      },
+      "problems": [],
+      "human_review": "doğru"
+    },
+    {
+      "id": "H14",
+      "category": "unanswerable",
+      "request_id": "eval.20261005-005836-generative-holdout.H14",
+      "http_status": 200,
+      "elapsed_ms": 1930,
+      "expected_status": "insufficient_evidence",
+      "actual_status": "insufficient_evidence",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "n/a",
+        "citation": "n/a",
+        "version": "n/a",
+        "source_validity": "n/a",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "pass",
+        "required_facts": "n/a",
+        "forbidden_facts": "pass"
+      },
+      "problems": [],
+      "human_review": "doğru"
+    },
+    {
+      "id": "H15",
+      "category": "unanswerable",
+      "request_id": "eval.20261005-005836-generative-holdout.H15",
+      "http_status": 200,
+      "elapsed_ms": 2057,
+      "expected_status": "insufficient_evidence",
+      "actual_status": "insufficient_evidence",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "n/a",
+        "citation": "n/a",
+        "version": "n/a",
+        "source_validity": "n/a",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "pass",
+        "required_facts": "n/a",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "doğru"
+    },
+    {
+      "id": "H16",
+      "category": "unanswerable",
+      "request_id": "eval.20261005-005836-generative-holdout.H16",
+      "http_status": 200,
+      "elapsed_ms": 1688,
+      "expected_status": "insufficient_evidence",
+      "actual_status": "insufficient_evidence",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "n/a",
+        "citation": "n/a",
+        "version": "n/a",
+        "source_validity": "n/a",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "pass",
+        "required_facts": "n/a",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "doğru"
+    },
+    {
+      "id": "H17",
+      "category": "unanswerable",
+      "request_id": "eval.20261005-005836-generative-holdout.H17",
+      "http_status": 200,
+      "elapsed_ms": 2217,
+      "expected_status": "insufficient_evidence",
+      "actual_status": "insufficient_evidence",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "n/a",
+        "citation": "n/a",
+        "version": "n/a",
+        "source_validity": "n/a",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "pass",
+        "required_facts": "n/a",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "doğru"
+    },
+    {
+      "id": "H18",
       "category": "partial",
-      "request_id": "eval.20261005-000524-generative.E15",
+      "request_id": "eval.20261005-005836-generative-holdout.H18",
       "http_status": 200,
-      "elapsed_ms": 2640,
+      "elapsed_ms": 2803,
       "expected_status": "partial",
       "actual_status": "partial",
       "checks": {
@@ -440,7 +522,7 @@
         "status": "pass",
         "retrieval": "pass",
         "citation": "pass",
-        "version": "pass",
+        "version": "n/a",
         "source_validity": "pass",
         "no_unnecessary_refusal": "pass",
         "no_claims_when_unanswerable": "n/a",
@@ -451,11 +533,57 @@
       "human_review": "doğru"
     },
     {
-      "id": "E16",
-      "category": "historical_version",
-      "request_id": "eval.20261005-000524-generative.E16",
+      "id": "H19",
+      "category": "partial",
+      "request_id": "eval.20261005-005836-generative-holdout.H19",
       "http_status": 200,
-      "elapsed_ms": 3034,
+      "elapsed_ms": 1801,
+      "expected_status": "partial",
+      "actual_status": "partial",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "pass"
+      },
+      "problems": [],
+      "human_review": "doğru"
+    },
+    {
+      "id": "H20",
+      "category": "partial",
+      "request_id": "eval.20261005-005836-generative-holdout.H20",
+      "http_status": 200,
+      "elapsed_ms": 1517,
+      "expected_status": "partial",
+      "actual_status": "partial",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "pass"
+      },
+      "problems": [],
+      "human_review": "doğru"
+    },
+    {
+      "id": "H21",
+      "category": "false_premise",
+      "request_id": "eval.20261005-005836-generative-holdout.H21",
+      "http_status": 200,
+      "elapsed_ms": 1653,
       "expected_status": "answered",
       "actual_status": "answered",
       "checks": {
@@ -474,11 +602,11 @@
       "human_review": "doğru"
     },
     {
-      "id": "E17",
+      "id": "H22",
       "category": "false_premise",
-      "request_id": "eval.20261005-000524-generative.E17",
+      "request_id": "eval.20261005-005836-generative-holdout.H22",
       "http_status": 200,
-      "elapsed_ms": 2113,
+      "elapsed_ms": 1511,
       "expected_status": "answered",
       "actual_status": "answered",
       "checks": {
@@ -497,11 +625,11 @@
       "human_review": "doğru"
     },
     {
-      "id": "E18",
-      "category": "multi_source",
-      "request_id": "eval.20261005-000524-generative.E18",
+      "id": "H23",
+      "category": "false_premise",
+      "request_id": "eval.20261005-005836-generative-holdout.H23",
       "http_status": 200,
-      "elapsed_ms": 2456,
+      "elapsed_ms": 1656,
       "expected_status": "answered",
       "actual_status": "answered",
       "checks": {
@@ -509,12 +637,83 @@
         "status": "pass",
         "retrieval": "pass",
         "citation": "pass",
-        "version": "pass",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "fail",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [
+        "required_facts: bulunamadı: Giriş aygıtı seçilmezse müşteri temsilciyi duyamaz."
+      ],
+      "human_review": "kabul edilebilir: ön kabul düzeltildi; 'giriş seçilmezse müşteri temsilciyi duyamaz' söylenmedi (generation)"
+    },
+    {
+      "id": "H24",
+      "category": "multi_source",
+      "request_id": "eval.20261005-005836-generative-holdout.H24",
+      "http_status": 200,
+      "elapsed_ms": 2213,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "n/a",
         "source_validity": "pass",
         "no_unnecessary_refusal": "pass",
         "no_claims_when_unanswerable": "n/a",
         "required_facts": "pass",
-        "forbidden_facts": "pass"
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "doğru"
+    },
+    {
+      "id": "H25",
+      "category": "multi_source",
+      "request_id": "eval.20261005-005836-generative-holdout.H25",
+      "http_status": 200,
+      "elapsed_ms": 2224,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "doğru"
+    },
+    {
+      "id": "H26",
+      "category": "paraphrase",
+      "request_id": "eval.20261005-005836-generative-holdout.H26",
+      "http_status": 200,
+      "elapsed_ms": 2084,
+      "expected_status": "answered",
+      "actual_status": "answered",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "pass",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "pass",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "pass",
+        "forbidden_facts": "n/a"
       },
       "problems": [],
       "human_review": "doğru"

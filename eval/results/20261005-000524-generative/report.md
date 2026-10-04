@@ -43,24 +43,24 @@ Payda, kontrolün o soru ve modda uygulandığı sorulardır (tanımlar `docs/pr
 
 | ID | Kategori | Beklenen durum | Gerçek | Beklenen bölüm | İlk k | Kaynak / aday | Başarısız kontroller | İnsan incelemesi |
 |---|---|---|---|---|---|---|---|---|
-| E01 | normal | answered | answered | D01#baglanti | D01#kullanim, D01#baglanti, D02#ses-yok, D01#tamamlama | D01#baglanti, D01#tamamlama | — | pending |
-| E02 | normal | answered | answered | D02#ses-yok | D02#ses-yok, D02#sinir, D02#kullanim, D01#tamamlama | D02#ses-yok | — | pending |
-| E03 | version_conflict | answered | answered | D04#sure | D04#sure, D05#bedel, D05#kullanim, D01#kullanim | D04#sure | — | pending |
-| E04 | version_conflict | answered | answered | D04#kargo | D05#bedel, D04#kargo, D05#kullanim, D04#sure | D04#kargo | — | pending |
-| E05 | normal | answered | answered | D05#bedel | D05#bedel, D04#sure, D05#kullanim, D04#kargo | D05#bedel, D05#kullanim | — | pending |
-| E06 | normal | answered | answered | D06#alanlar | D06#alanlar, D06#kullanim, D10#kullanim, D10#paylasim | D06#alanlar, D10#paylasim | — | pending |
-| E07 | normal | answered | answered | D07#p1 | D07#p1, D07#iletisim, D02#ses-yok, D07#kullanim | D07#p1, D07#iletisim | — | pending |
-| E08 | normal | answered | answered | D08#saatler | D08#kullanim, D08#saatler, D06#kullanim, D10#kullanim | D08#kullanim, D08#saatler | — | pending |
-| E09 | normal | answered | answered | D09#sifre | D09#sifre, D10#paylasim, D09#kullanim, D10#musteri-istegi | D09#sifre, D10#paylasim | — | pending |
-| E10 | normal | answered | answered | D10#paylasim | D10#musteri-istegi, D10#paylasim, D06#alanlar, D06#dogruluk | D10#paylasim | — | pending |
-| E11 | unanswerable | insufficient_evidence | insufficient_evidence | — | D04#uygulama, D02#kullanim, D04#sure, D01#tamamlama | — | — | pending |
-| E12 | unanswerable | insufficient_evidence | insufficient_evidence | — | D04#sure, D05#bedel, D05#kullanim, D04#kargo | — | — | pending |
-| E13 | unanswerable | insufficient_evidence | insufficient_evidence | — | D06#alanlar, D02#ses-yok, D06#kullanim, D10#paylasim | — | — | pending |
-| E14 | paraphrase | answered | answered | D04#sure | D04#sure, D06#dogruluk, D05#bedel, D09#kullanim | D04#sure | — | pending |
-| E15 | partial | partial | partial | D04#sure | D04#sure, D04#uygulama, D05#kullanim, D01#kullanim | D04#sure | — | pending |
-| E16 | historical_version | answered | answered | D03#sure | D03#uygulama, D05#bedel, D03#sure, D05#kullanim | D03#sure | — | pending |
-| E17 | false_premise | answered | answered | D07#p1 | D07#p1, D07#iletisim, D07#kullanim, D10#paylasim | D07#p1, D07#iletisim | — | pending |
-| E18 | multi_source | answered | answered | D04#sure, D05#bedel | D05#bedel, D04#sure, D05#kullanim, D04#uygulama | D04#sure, D05#bedel, D05#kullanim | — | pending |
+| E01 | normal | answered | answered | D01#baglanti | D01#kullanim, D01#baglanti, D02#ses-yok, D01#tamamlama | D01#baglanti, D01#tamamlama | — | doğru |
+| E02 | normal | answered | answered | D02#ses-yok | D02#ses-yok, D02#sinir, D02#kullanim, D01#tamamlama | D02#ses-yok | — | doğru |
+| E03 | version_conflict | answered | answered | D04#sure | D04#sure, D05#bedel, D05#kullanim, D01#kullanim | D04#sure | — | doğru |
+| E04 | version_conflict | answered | answered | D04#kargo | D05#bedel, D04#kargo, D05#kullanim, D04#sure | D04#kargo | — | doğru (etiketi şirketin sağladığı açıkça söylenmemiş) |
+| E05 | normal | answered | answered | D05#bedel | D05#bedel, D04#sure, D05#kullanim, D04#kargo | D05#bedel, D05#kullanim | — | doğru |
+| E06 | normal | answered | answered | D06#alanlar | D06#alanlar, D06#kullanim, D10#kullanim, D10#paylasim | D06#alanlar, D10#paylasim | — | doğru (sorulmayan ama kaynaklı bir güvenlik notu eklenmiş) |
+| E07 | normal | answered | answered | D07#p1 | D07#p1, D07#iletisim, D02#ses-yok, D07#kullanim | D07#p1, D07#iletisim | — | doğru |
+| E08 | normal | answered | answered | D08#saatler | D08#kullanim, D08#saatler, D06#kullanim, D10#kullanim | D08#kullanim, D08#saatler | — | doğru |
+| E09 | normal | answered | answered | D09#sifre | D09#sifre, D10#paylasim, D09#kullanim, D10#musteri-istegi | D09#sifre, D10#paylasim | — | doğru (sorulmayan ama kaynaklı bir güvenlik notu eklenmiş) |
+| E10 | normal | answered | answered | D10#paylasim | D10#musteri-istegi, D10#paylasim, D06#alanlar, D06#dogruluk | D10#paylasim | — | doğru |
+| E11 | unanswerable | insufficient_evidence | insufficient_evidence | — | D04#uygulama, D02#kullanim, D04#sure, D01#tamamlama | — | — | doğru |
+| E12 | unanswerable | insufficient_evidence | insufficient_evidence | — | D04#sure, D05#bedel, D05#kullanim, D04#kargo | — | — | doğru |
+| E13 | unanswerable | insufficient_evidence | insufficient_evidence | — | D06#alanlar, D02#ses-yok, D06#kullanim, D10#paylasim | — | — | doğru |
+| E14 | paraphrase | answered | answered | D04#sure | D04#sure, D06#dogruluk, D05#bedel, D09#kullanim | D04#sure | — | doğru |
+| E15 | partial | partial | partial | D04#sure | D04#sure, D04#uygulama, D05#kullanim, D01#kullanim | D04#sure | — | doğru |
+| E16 | historical_version | answered | answered | D03#sure | D03#uygulama, D05#bedel, D03#sure, D05#kullanim | D03#sure | — | doğru |
+| E17 | false_premise | answered | answered | D07#p1 | D07#p1, D07#iletisim, D07#kullanim, D10#paylasim | D07#p1, D07#iletisim | — | doğru |
+| E18 | multi_source | answered | answered | D04#sure, D05#bedel | D05#bedel, D04#sure, D05#kullanim, D04#uygulama | D04#sure, D05#bedel, D05#kullanim | — | doğru |
 
 ## Ayrıntılar
 
@@ -79,7 +79,7 @@ Payda, kontrolün o soru ve modda uygulandığı sorulardır (tanımlar `docs/pr
   - Claim: Türkiye’deki B2B müşteriler için MH-10’u kullanmaya başlamak üzere kulaklığı bilgisayarın USB bağlantı noktasına takın, ardından destek panelinin ses ayarlarında hem giriş aygıtı (mikrofon) hem de çıkış aygıtı (hoparlör) olarak seçin; ikisi de seçildiğinde kurulum tamamlanır ve kulaklık panel üzerinden yapılan görüşmelerde kullanılabilir. [D01#baglanti, D01#tamamlama]
   - Cevap: Türkiye’deki B2B müşteriler için MH-10’u kullanmaya başlamak üzere kulaklığı bilgisayarın USB bağlantı noktasına takın, ardından destek panelinin ses ayarlarında hem giriş aygıtı (mikrofon) hem de çıkış aygıtı (hoparlör) olarak seçin; ikisi de seçildiğinde kurulum tamamlanır ve kulaklık panel üzerinden yapılan görüşmelerde kullanılabilir.
   - Sürüm kararları: mh10-setup → D01; audio-troubleshooting → D02
-- İnsan incelemesi: pending
+- İnsan incelemesi: doğru
 
 ### E02 · normal
 
@@ -97,7 +97,7 @@ Payda, kontrolün o soru ve modda uygulandığı sorulardır (tanımlar `docs/pr
   - Claim: Türkiye’deki B2B müşterilerin MH-10 ile yaptığı görüşmelerde ses gelmiyorsa veya karşı taraf duyulamıyorsa kontrolleri sırayla yapın: USB kablosunun bilgisayara tam takılı olduğunu kontrol edin ve gerekirse çıkarıp yeniden takın; destek panelinin ses ayarlarında MH-10’un giriş ve çıkış aygıtı olarak seçili olduğunu doğrulayın; panelden test çağrısı yaparak sesin iki yönde de iletildiğini kontrol edin. Bir adım sorunu çözerse sonraki adımlara geçmeyin; sorun devam ederse destek talebi açın. [D02#ses-yok]
   - Cevap: Türkiye’deki B2B müşterilerin MH-10 ile yaptığı görüşmelerde ses gelmiyorsa veya karşı taraf duyulamıyorsa kontrolleri sırayla yapın: USB kablosunun bilgisayara tam takılı olduğunu kontrol edin ve gerekirse çıkarıp yeniden takın; destek panelinin ses ayarlarında MH-10’un giriş ve çıkış aygıtı olarak seçili olduğunu doğrulayın; panelden test çağrısı yaparak sesin iki yönde de iletildiğini kontrol edin. Bir adım sorunu çözerse sonraki adımlara geçmeyin; sorun devam ederse destek talebi açın.
   - Sürüm kararları: audio-troubleshooting → D02; mh10-setup → D01
-- İnsan incelemesi: pending
+- İnsan incelemesi: doğru
 
 ### E03 · version_conflict
 
@@ -113,7 +113,7 @@ Payda, kontrolün o soru ve modda uygulandığı sorulardır (tanımlar `docs/pr
   - Claim: Türkiye’deki B2B müşteriler, MH-10 temsilci kulaklıkları için iade talebini ürünün teslim tarihinden itibaren 30 takvim günü içinde açabilir. [D04#sure]
   - Cevap: Türkiye’deki B2B müşteriler, MH-10 temsilci kulaklıkları için iade talebini ürünün teslim tarihinden itibaren 30 takvim günü içinde açabilir.
   - Sürüm kararları: returns → D04 (D03 expired); refund-payment → D05; mh10-setup → D01
-- İnsan incelemesi: pending
+- İnsan incelemesi: doğru
 
 ### E04 · version_conflict
 
@@ -129,7 +129,7 @@ Payda, kontrolün o soru ve modda uygulandığı sorulardır (tanımlar `docs/pr
   - Claim: Türkiye'deki kurumsal (B2B) müşterilerin MH-10 iade talebi onaylandığında, iade etiketiyle yapılan gönderimin kargo bedelini şirket karşılar. [D04#kargo]
   - Cevap: Türkiye'deki kurumsal (B2B) müşterilerin MH-10 iade talebi onaylandığında, iade etiketiyle yapılan gönderimin kargo bedelini şirket karşılar.
   - Sürüm kararları: refund-payment → D05; returns → D04 (D03 expired)
-- İnsan incelemesi: pending
+- İnsan incelemesi: doğru (etiketi şirketin sağladığı açıkça söylenmemiş)
 
 ### E05 · normal
 
@@ -148,7 +148,7 @@ Payda, kontrolün o soru ve modda uygulandığı sorulardır (tanımlar `docs/pr
   - Claim: Türkiye’deki kurumsal (B2B) müşteriler için iade bedeli, iadenin kabul edilmesinden sonra 5 iş günü içinde ödenir; süre ürünün kargoya verildiği tarihten başlamaz. [D05#bedel, D05#kullanim]
   - Cevap: Türkiye’deki kurumsal (B2B) müşteriler için iade bedeli, iadenin kabul edilmesinden sonra 5 iş günü içinde ödenir; süre ürünün kargoya verildiği tarihten başlamaz.
   - Sürüm kararları: refund-payment → D05; returns → D04 (D03 expired)
-- İnsan incelemesi: pending
+- İnsan incelemesi: doğru
 
 ### E06 · normal
 
@@ -169,7 +169,7 @@ Payda, kontrolün o soru ve modda uygulandığı sorulardır (tanımlar `docs/pr
   - Claim: Destek talebinde parola ve tek kullanımlık doğrulama kodu paylaşılmamalıdır. [D10#paylasim]
   - Cevap: Türkiye’deki B2B müşteriler, MH-10 için destek talebi açarken cihazın seri numarasını belirtmelidir. Ekranda hata kodu görüntülendiyse talepte bu kod belirtilmeli; görüntülenmediyse bu alan boş bırakılabilir. Talepte, sorun ortaya çıkana kadar yapılan işlemler hangi sırayla gerçekleştiyse bu sırayla açıklanmalıdır. Destek talebinde parola ve tek kullanımlık doğrulama kodu paylaşılmamalıdır.
   - Sürüm kararları: support-ticket → D06; safe-support-sharing → D10
-- İnsan incelemesi: pending
+- İnsan incelemesi: doğru (sorulmayan ama kaynaklı bir güvenlik notu eklenmiş)
 
 ### E07 · normal
 
@@ -186,7 +186,7 @@ Payda, kontrolün o soru ve modda uygulandığı sorulardır (tanımlar `docs/pr
   - Claim: Türkiye’deki B2B MH-10 müşterilerinde tüm temsilcilerin çalışmasını durduran bir olay P1 olarak sınıflandırılır ve ilk yanıt hedefi 2 çalışma saatidir; bu, destek ekibinin ilk yanıt hedefidir, çözüm süresi garantisi değildir. [D07#p1, D07#iletisim]
   - Cevap: Türkiye’deki B2B MH-10 müşterilerinde tüm temsilcilerin çalışmasını durduran bir olay P1 olarak sınıflandırılır ve ilk yanıt hedefi 2 çalışma saatidir; bu, destek ekibinin ilk yanıt hedefidir, çözüm süresi garantisi değildir.
   - Sürüm kararları: priority-sla → D07; audio-troubleshooting → D02
-- İnsan incelemesi: pending
+- İnsan incelemesi: doğru
 
 ### E08 · normal
 
@@ -204,7 +204,7 @@ Payda, kontrolün o soru ve modda uygulandığı sorulardır (tanımlar `docs/pr
   - Claim: Türkiye’deki B2B müşteriler, destek ekibine hafta içi pazartesiden cumaya, Türkiye saatine göre 09.00–18.00 arasında ulaşabilir; hafta sonları bu saatlerin dışındadır. [D08#kullanim, D08#saatler]
   - Cevap: Türkiye’deki B2B müşteriler, destek ekibine hafta içi pazartesiden cumaya, Türkiye saatine göre 09.00–18.00 arasında ulaşabilir; hafta sonları bu saatlerin dışındadır.
   - Sürüm kararları: support-hours → D08; support-ticket → D06; safe-support-sharing → D10
-- İnsan incelemesi: pending
+- İnsan incelemesi: doğru
 
 ### E09 · normal
 
@@ -221,7 +221,7 @@ Payda, kontrolün o soru ve modda uygulandığı sorulardır (tanımlar `docs/pr
   - Claim: Parola destek personeliyle veya başka biriyle paylaşılmamalıdır; destek personeli de parolayı istemez. [D10#paylasim]
   - Cevap: Türkiye’deki B2B müşteriler MH-10 destek paneline giriş ekranından parola sıfırlama isteği gönderir; sıfırlama bağlantısı hesapta kayıtlı e-posta adresine iletilir. Bağlantıyı açarak yeni parolalarını belirler ve yeni parolayla destek paneline giriş yaparlar. Parola destek personeliyle veya başka biriyle paylaşılmamalıdır; destek personeli de parolayı istemez.
   - Sürüm kararları: account-access → D09; safe-support-sharing → D10
-- İnsan incelemesi: pending
+- İnsan incelemesi: doğru (sorulmayan ama kaynaklı bir güvenlik notu eklenmiş)
 
 ### E10 · normal
 
@@ -236,7 +236,7 @@ Payda, kontrolün o soru ve modda uygulandığı sorulardır (tanımlar `docs/pr
   - Claim: OTP kodunuzu destek personeliyle veya başka biriyle paylaşmayın; destek personeli de bu kodu istemez. [D10#paylasim]
   - Cevap: OTP kodunuzu destek personeliyle veya başka biriyle paylaşmayın; destek personeli de bu kodu istemez.
   - Sürüm kararları: safe-support-sharing → D10; support-ticket → D06
-- İnsan incelemesi: pending
+- İnsan incelemesi: doğru
 
 ### E11 · unanswerable
 
@@ -250,7 +250,7 @@ Payda, kontrolün o soru ve modda uygulandığı sorulardır (tanımlar `docs/pr
   - Eksik konu: MH-10 garantisinin kaç ay sürdüğü verilen belgelerde belirtilmiyor.
   - Cevap: Onaylı belgelerde bu soruyu yanıtlayacak bilgi bulunamadı. Bu istekteki belgelerle yanıtlanamayan konular: MH-10 garantisinin kaç ay sürdüğü verilen belgelerde belirtilmiyor.
   - Sürüm kararları: returns → D04 (D03 expired); audio-troubleshooting → D02; mh10-setup → D01
-- İnsan incelemesi: pending
+- İnsan incelemesi: doğru
 
 ### E12 · unanswerable
 
@@ -264,7 +264,7 @@ Payda, kontrolün o soru ve modda uygulandığı sorulardır (tanımlar `docs/pr
   - Eksik konu: Almanya’daki müşteriler için 30 günlük iade süresinin geçerli olup olmadığı, verilen belgelerde belirtilmiyor; Almanya kapsamı için bilgi gerekiyor.
   - Cevap: Belgeler yalnızca isteğin kapsamı için geçerlidir; soruda geçen başka bir kapsama uygulanamaz. Bu istekteki belgelerle yanıtlanamayan konular: Almanya’daki müşteriler için 30 günlük iade süresinin geçerli olup olmadığı, verilen belgelerde belirtilmiyor; Almanya kapsamı için bilgi gerekiyor.
   - Sürüm kararları: returns → D04 (D03 expired); refund-payment → D05
-- İnsan incelemesi: pending
+- İnsan incelemesi: doğru
 
 ### E13 · unanswerable
 
@@ -278,7 +278,7 @@ Payda, kontrolün o soru ve modda uygulandığı sorulardır (tanımlar `docs/pr
   - Eksik konu: 4711 numaralı ticket’ın çözülüp çözülmediği bilgisi; canlı ticket durumuna erişimim yok.
   - Cevap: Onaylı belgelerde bu soruyu yanıtlayacak bilgi bulunamadı. Bu istekteki belgelerle yanıtlanamayan konular: 4711 numaralı ticket’ın çözülüp çözülmediği bilgisi; canlı ticket durumuna erişimim yok.
   - Sürüm kararları: support-ticket → D06; audio-troubleshooting → D02; safe-support-sharing → D10
-- İnsan incelemesi: pending
+- İnsan incelemesi: doğru
 
 ### E14 · paraphrase
 
@@ -293,7 +293,7 @@ Payda, kontrolün o soru ve modda uygulandığı sorulardır (tanımlar `docs/pr
   - Claim: Türkiye’deki B2B müşteriler, MH-10 temsilci kulaklıkları için iade talebini ürünün teslim tarihinden itibaren 30 takvim günü içinde açabilir; hafta sonları da bu süreye dahildir. [D04#sure]
   - Cevap: Türkiye’deki B2B müşteriler, MH-10 temsilci kulaklıkları için iade talebini ürünün teslim tarihinden itibaren 30 takvim günü içinde açabilir; hafta sonları da bu süreye dahildir.
   - Sürüm kararları: returns → D04 (D03 expired); support-ticket → D06; refund-payment → D05; account-access → D09
-- İnsan incelemesi: pending
+- İnsan incelemesi: doğru
 
 ### E15 · partial
 
@@ -310,7 +310,7 @@ Payda, kontrolün o soru ve modda uygulandığı sorulardır (tanımlar `docs/pr
   - Eksik konu: Almanya’da MH-10 iadesi için aynı sürenin geçerli olup olmadığı verilen belgelerde belirtilmiyor.
   - Cevap: Türkiye’deki kurumsal müşteriler, MH-10 için iade talebini ürünün tesliminden itibaren 30 takvim günü içinde açabilir. Bu istekteki belgelerle yanıtlanamayan konular: Almanya’da MH-10 iadesi için aynı sürenin geçerli olup olmadığı verilen belgelerde belirtilmiyor.
   - Sürüm kararları: returns → D04 (D03 expired); refund-payment → D05; mh10-setup → D01
-- İnsan incelemesi: pending
+- İnsan incelemesi: doğru
 
 ### E16 · historical_version
 
@@ -325,7 +325,7 @@ Payda, kontrolün o soru ve modda uygulandığı sorulardır (tanımlar `docs/pr
   - Claim: Türkiye’deki kurumsal (B2B) müşteriler, MH-10 temsilci kulaklıkları için iade talebini ürünün tesliminden itibaren 14 takvim günü içinde açabilir; hafta sonları da bu süreye dâhildir. [D03#sure]
   - Cevap: Türkiye’deki kurumsal (B2B) müşteriler, MH-10 temsilci kulaklıkları için iade talebini ürünün tesliminden itibaren 14 takvim günü içinde açabilir; hafta sonları da bu süreye dâhildir.
   - Sürüm kararları: returns → D03 (D04 future_effective); refund-payment → D05
-- İnsan incelemesi: pending
+- İnsan incelemesi: doğru
 
 ### E17 · false_premise
 
@@ -341,7 +341,7 @@ Payda, kontrolün o soru ve modda uygulandığı sorulardır (tanımlar `docs/pr
   - Claim: Tüm temsilcilerin çalışmasını durduran olaylar P1 olarak sınıflandırılır; bu tür olaylarda destek ekibinin ilk yanıt hedefi 2 çalışma saatidir ve bu, çözüm süresi garantisi değildir. [D07#p1, D07#iletisim]
   - Cevap: Tüm temsilcilerin çalışmasını durduran olaylar P1 olarak sınıflandırılır; bu tür olaylarda destek ekibinin ilk yanıt hedefi 2 çalışma saatidir ve bu, çözüm süresi garantisi değildir.
   - Sürüm kararları: priority-sla → D07; safe-support-sharing → D10
-- İnsan incelemesi: pending
+- İnsan incelemesi: doğru
 
 ### E18 · multi_source
 
@@ -358,5 +358,5 @@ Payda, kontrolün o soru ve modda uygulandığı sorulardır (tanımlar `docs/pr
   - Claim: Türkiye’deki B2B müşterilerin MH-10 kulaklıkları için iade bedeli, iadenin kabul edilmesinden sonra 5 iş günü içinde ödenir; süre ürünün kargoya verildiği tarihten başlamaz ve iş günü hafta sonu dışındaki günleri ifade eder. [D05#bedel, D05#kullanim]
   - Cevap: Türkiye’deki B2B müşteriler, MH-10 temsilci kulaklıkları için iade talebini ürünün tesliminden itibaren 30 takvim günü içinde açabilir. Türkiye’deki B2B müşterilerin MH-10 kulaklıkları için iade bedeli, iadenin kabul edilmesinden sonra 5 iş günü içinde ödenir; süre ürünün kargoya verildiği tarihten başlamaz ve iş günü hafta sonu dışındaki günleri ifade eder.
   - Sürüm kararları: refund-payment → D05; returns → D04 (D03 expired)
-- İnsan incelemesi: pending
+- İnsan incelemesi: doğru
 

@@ -126,7 +126,7 @@
         "forbidden_facts": "n/a"
       },
       "problems": [],
-      "human_review": "pending"
+      "human_review": "doğru"
     },
     {
       "id": "E02",
@@ -149,7 +149,7 @@
         "forbidden_facts": "n/a"
       },
       "problems": [],
-      "human_review": "pending"
+      "human_review": "doğru"
     },
     {
       "id": "E03",
@@ -172,7 +172,7 @@
         "forbidden_facts": "pass"
       },
       "problems": [],
-      "human_review": "pending"
+      "human_review": "doğru"
     },
     {
       "id": "E04",
@@ -195,7 +195,7 @@
         "forbidden_facts": "pass"
       },
       "problems": [],
-      "human_review": "pending"
+      "human_review": "doğru"
     },
     {
       "id": "E05",
@@ -218,7 +218,7 @@
         "forbidden_facts": "pass"
       },
       "problems": [],
-      "human_review": "pending"
+      "human_review": "doğru"
     },
     {
       "id": "E06",
@@ -241,7 +241,7 @@
         "forbidden_facts": "n/a"
       },
       "problems": [],
-      "human_review": "pending"
+      "human_review": "doğru"
     },
     {
       "id": "E07",
@@ -264,7 +264,7 @@
         "forbidden_facts": "n/a"
       },
       "problems": [],
-      "human_review": "pending"
+      "human_review": "doğru"
     },
     {
       "id": "E08",
@@ -287,7 +287,7 @@
         "forbidden_facts": "n/a"
       },
       "problems": [],
-      "human_review": "pending"
+      "human_review": "doğru"
     },
     {
       "id": "E09",
@@ -310,7 +310,7 @@
         "forbidden_facts": "n/a"
       },
       "problems": [],
-      "human_review": "pending"
+      "human_review": "doğru (sorulmayan ama kaynaklı bir güvenlik notu eklenmiş)"
     },
     {
       "id": "E10",
@@ -333,7 +333,7 @@
         "forbidden_facts": "n/a"
       },
       "problems": [],
-      "human_review": "pending"
+      "human_review": "doğru"
     },
     {
       "id": "E11",
@@ -356,7 +356,7 @@
         "forbidden_facts": "pass"
       },
       "problems": [],
-      "human_review": "pending"
+      "human_review": "doğru"
     },
     {
       "id": "E12",
@@ -379,7 +379,7 @@
         "forbidden_facts": "pass"
       },
       "problems": [],
-      "human_review": "pending"
+      "human_review": "doğru"
     },
     {
       "id": "E13",
@@ -402,7 +402,7 @@
         "forbidden_facts": "pass"
       },
       "problems": [],
-      "human_review": "pending"
+      "human_review": "doğru"
     },
     {
       "id": "E14",
@@ -425,7 +425,7 @@
         "forbidden_facts": "pass"
       },
       "problems": [],
-      "human_review": "pending"
+      "human_review": "doğru"
     },
     {
       "id": "E15",
@@ -448,7 +448,7 @@
         "forbidden_facts": "pass"
       },
       "problems": [],
-      "human_review": "pending"
+      "human_review": "doğru"
     },
     {
       "id": "E16",
@@ -471,7 +471,7 @@
         "forbidden_facts": "pass"
       },
       "problems": [],
-      "human_review": "pending"
+      "human_review": "doğru"
     },
     {
       "id": "E17",
@@ -494,7 +494,7 @@
         "forbidden_facts": "n/a"
       },
       "problems": [],
-      "human_review": "pending"
+      "human_review": "doğru"
     },
     {
       "id": "E18",
@@ -517,7 +517,7 @@
         "forbidden_facts": "pass"
       },
       "problems": [],
-      "human_review": "pending"
+      "human_review": "doğru"
     }
   ]
 }

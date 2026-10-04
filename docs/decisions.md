@@ -533,7 +533,53 @@ HTTP 18/18, sürüm kararı 6/6 ve kaynak geçerliliği 15/15 son iki koşuda da
 
 Son iki üretken koşu 18 sorunun 18'inde aynı iş durumunu, 17'sinde aynı kaynak kümesini verdi (farklı: E06). Üretim 1,4–4,8 sn; giriş 2.482–2.658 token (prompt uzadı), çıktı 56–278 token, reasoning tokenı en fazla 156. OpenRouter'ın listelediği fiyatla koşu başına yaklaşık 0,006 USD (tahmin, fatura değil).
 
-İki koşu bir başarı oranı değildir ve 18 soru ayar sırasında kullanıldığı için bağımsız bir ölçüm de değildir (K29). Son sürümle API üzerinden ayrıca yapılan tekrarlarda E05, E07, E12, E14, E16 ve E17 onar kez soruldu; 60 cevabın hepsi beklenen durumda ve otomatik kontrollerin hiçbiri başarısız değil. Aynı sorular `answer-v2` ile tekrarlandığında E14 20 denemede 9 kez `partial`, E05/E07/E08 zaman zaman eksik olgu veriyordu. Bu tekrarların ham çıktıları depoda değildir. Kök neden analizi ve insan incelemesi henüz yapılmadı; her sorunun `human_review` alanı `pending`.
+İki koşu bir başarı oranı değildir ve 18 soru ayar sırasında kullanıldığı için bağımsız bir ölçüm de değildir (K29). Son sürümle API üzerinden ayrıca yapılan tekrarlarda E05, E07, E12, E14, E16 ve E17 onar kez soruldu; 60 cevabın hepsi beklenen durumda ve otomatik kontrollerin hiçbiri başarısız değil. Aynı sorular `answer-v2` ile tekrarlandığında E14 20 denemede 9 kez `partial`, E05/E07/E08 zaman zaman eksik olgu veriyordu. Bu tekrarların ham çıktıları depoda değildir. #5 ve #6'nın cevapları insan tarafından incelendi ("İnsan incelemesi"); #3 ve #4 `pending`.
+
+### Holdout seti — bağımsız ölçüm
+
+Set (`eval/holdout_questions.jsonl`, 26 soru) commit `151b803` ile, hiç koşulmadan eklendi; koşular aynı sistemde (prompt `answer-v5`, corpus fingerprint `24568519…`) yapıldı ve sonuçlara bakılarak hiçbir şey değiştirilmedi:
+- [`eval/results/20261005-005746-evidence_only-holdout/report.md`](../eval/results/20261005-005746-evidence_only-holdout/report.md)
+- [`eval/results/20261005-005747-generative-holdout/report.md`](../eval/results/20261005-005747-generative-holdout/report.md) (H1), [`eval/results/20261005-005836-generative-holdout/report.md`](../eval/results/20261005-005836-generative-holdout/report.md) (H2)
+
+| Ölçüm | Alıntı modu | Üretken H1 | Üretken H2 |
+|---|---|---|---|
+| HTTP | 26/26 | 25/26 | 26/26 |
+| Beklenen durum | 22/22 | 23/26 | 24/26 |
+| Beklenen bölüm ilk 4'te | 22/22 | 21/22 (1 ölçülemedi) | 22/22 |
+| Beklenen bölüm kaynak gösterildi | — | 21/22 (1 ölçülemedi) | 22/22 |
+| Sürüm kararı | 6/6 | 6/6 | 6/6 |
+| Cevaplanabilir soruda `insufficient_evidence` dönmedi | — | 21/22 (1 ölçülemedi) | 22/22 |
+| Cevapsız soruda claim üretilmedi | — | 4/4 | 4/4 |
+| Gerekli kalıp | — | 19/22 | 20/22 |
+| Yasak kalıp yok | — | 12/12 | 12/12 |
+
+Başarısız otomatik kontroller ve sınıflandırma (insan incelemesiyle doğrulandı, aşağıda):
+- H09 (iki koşuda `partial`, beklenen `answered`): "10 Eylül'de teslim aldı, bugün 4 Ekim; hâlâ süre içinde mi?" Model 30 takvim günü kuralını verdi ama iki tarih arasını hesaplamadı; prompt bölümde yazmayan hesaplamayı yasaklar (K24). Bu, tasarım tercihinin bağımsız sette ölçülen bedelidir.
+- H05 (iki koşuda `partial`): "Yalnızca 'mesai saatleri' demem yeterli mi?" Cevap doğru (`D08#saat-dilimi`), ama saatlerin kendisini içeren `D08#saatler` ilk 4'te değildi ve model saatleri eksik konu olarak ekledi. Retrieval ve modelin temkini birlikte.
+- H03 (H1'de 502 `invalid_generation_output`): model `partial` dedi ama eksik konu yazmadı; bilinen seyrek durum tutarsızlığı (K25). H2'de doğru.
+- H02, H23 (gerekli kalıp): ana cevap doğru, ikincil olgu söylenmedi ("sorun sürerse destek talebi", "giriş aygıtı seçilmezse müşteri temsilciyi duyamaz").
+- H04 (H2'de gerekli kalıp): cevap "ilk yanıtını ne zaman vereceğini" diyor; kalıp bu eki tanımıyor. Ölçüm hatası olabilir; holdout kuralı gereği kalıp değiştirilmedi.
+
+İki üretken koşu 26 sorunun 25'inde aynı iş durumunu verdi. Üretim 1,2–3,6 sn; giriş 2.509–2.693, çıktı 56–319 token. Bu set, bu teslimde sistemin yeni sorulardaki davranışına dair tek bağımsız kanıttır ve küçük bir settir; genellenebilir bir doğruluk oranı vermez.
+
+### İnsan incelemesi
+
+Son iki ana koşu (#5, #6) ve iki holdout koşusu (H1, H2), 98 cevap, tek tek okundu: her claim'deki olgunun atıf yapılan bölümün alıntısında yazıp yazmadığı, belgede olmayan bilgi eklenip eklenmediği, durumun uygunluğu ve cümlenin müşteriye söylenebilirliği. Karar her sorunun `human_review` alanında (`doğru`, `kabul edilebilir: …`, `yanlış: …`); daha eski koşular `pending` kaldı.
+
+| Koşu | Cevap | Doğru | Kabul edilebilir | Yanlış |
+|---|---|---|---|---|
+| Ana set #5 | 18 | 18 | 0 | 0 |
+| Ana set #6 | 18 | 18 | 0 | 0 |
+| Holdout H1 | 26 | 21 | 4 (H02, H05, H09, H23) | 1 (H03) |
+| Holdout H2 | 26 | 23 | 3 (H05, H09, H23) | 0 |
+
+- Hiçbir cevapta belgede olmayan süre, adım veya sayı, yanlış sürüm ya da kuralın başka bir kapsama genellenmesi yok.
+- Kabul edilebilirler: H09 tarih hesabını bilerek yapmıyor (generation, tasarım tercihi); H05'te `D08#saatler` ilk 4'te olmadığı için saatler eksik konu olarak eklendi (retrieval); H23 ve H02 (H1) ikincil bir olguyu söylemedi (generation).
+- Yanlış: H03 (H1) modelin tutarsız çıktısı, sunucu 502 ile reddetti (validation); H2'de aynı soru doğru.
+- H04 (H2) otomatik kalıp kontrolünden kaldı ama cevap doğru; kalıp "yanıtını" ekini tanımıyor (beklenen veri). Holdout kuralı gereği kalıp değiştirilmedi.
+- Ana sette E06 ve E09'un bazı cevaplarına sorulmayan ama kaynaklı bir güvenlik notu ("parola/OTP paylaşılmaz") eklenmiş; yanlış sayılmadı.
+
+İnceleme otomatik kontrollerin yerine geçmez ve tek kişinin okumasıdır; anlamsal doğruluk garantisi vermez.
 
 ## Bilinen sınırlar
 
@@ -543,14 +589,14 @@ Son iki üretken koşu 18 sorunun 18'inde aynı iş durumunu, 17'sinde aynı kay
 - **Skorların taşınabilirliği.** Skorlar farklı CPU mimarilerinde son basamaklarda (yaklaşık 1e-6) farklı çıkabilir. Eşit skorda `chunk_id` sıralaması yalnızca birebir eşit skorlar için devreye girer.
 - **Küçük ölçüm.** Eşik ve bölümleme kararları 20 geliştirme sorusuna dayanır. 18 soruluk değerlendirme de aynı kurgu korpus için yazılmış küçük bir Türkçe regresyon setidir; genellenebilir bir doğruluk oranı vermez.
 - **Retrieval bu küçük sette tam, genelde garanti değil.** İlk koşuda 15 cevaplanabilir sorunun 3'ünde (E15, E16, E18) beklenen `sure` bölümü ilk 4'te yoktu; bölümleme değişikliklerinden sonra değerlendirmede 15/15, geliştirme setinde 20/20 (K11, K17). Denemelerde beklenen bölümün ilk 4'ün dışında kaldığı ifade türleri: modelin tanımadığı eş anlamlılar ("nakliye masrafı" için `D03#kargo` 17. sırada; "kargo ücreti" ile 1.), yazım hatalı veya Türkçe karaktersiz yazılmış sorular, beş ayrı soruyu tek mesajda soran istekler (4 bölüm hepsine yetmez) ve uzun bir anlatımın sonuna eklenmiş soru. Bu durumlarda model getirilmeyen konuyu eksik konu olarak yazar.
-- **Canlı üretim deterministik değil.** Her üretken istek ücretli bir model çağrısıdır. `answer-v2` ile aynı commit ve ayarlarla iki üretken koşu 18 sorunun 2'sinde farklı iş durumu verdi; son iki koşu 18'inde aynı durumu verdi. Birkaç koşu bir başarı oranı vermez. Tekrarlarda kalan zayıflıklar: tanımla birebir aynı kelimeleri kullanmayan durumlarda temkinli cevap ("bütün ekip sisteme bağlanamıyor" sorusu P1 tanımı "tüm temsilcilerin çalışmasını durduran olay" ile 4 denemede 2 kez eşleştirilmedi) ve seyrek durum tutarsızlığı (K25). Sonuçlara insan incelemesi henüz yapılmadı (`pending`). Eval'dan önceki deneme çağrılarından ikisi, OpenRouter'da etkin olan sıfır veri saklama (ZDR) kısıtı OpenAI uç noktasını dışladığı için 404 aldı; servis bunu doğru biçimde 503 `provider_unavailable` olarak döndü, "belgede yok" saymadı.
+- **Canlı üretim deterministik değil.** Her üretken istek ücretli bir model çağrısıdır. `answer-v2` ile aynı commit ve ayarlarla iki üretken koşu 18 sorunun 2'sinde farklı iş durumu verdi; son iki koşu 18'inde aynı durumu verdi. Birkaç koşu bir başarı oranı vermez. Tekrarlarda kalan zayıflıklar: tanımla birebir aynı kelimeleri kullanmayan durumlarda temkinli cevap ("bütün ekip sisteme bağlanamıyor" sorusu P1 tanımı "tüm temsilcilerin çalışmasını durduran olay" ile 4 denemede 2 kez eşleştirilmedi) ve seyrek durum tutarsızlığı (K25). Son ana koşular ve holdout koşuları insan tarafından incelendi; daha eski koşular `pending`. Eval'dan önceki deneme çağrılarından ikisi, OpenRouter'da etkin olan sıfır veri saklama (ZDR) kısıtı OpenAI uç noktasını dışladığı için 404 aldı; servis bunu doğru biçimde 503 `provider_unavailable` olarak döndü, "belgede yok" saymadı.
 - **Model sürümü logda takma adla görünür.** OpenRouter yanıtta modeli `openai/gpt-6-luna` olarak bildiriyor, tarihli slug'ı değil. Hangi snapshot'ın kullanıldığı ancak OpenRouter'ın public models API'sinden (o gün `openai/gpt-6-luna-20260922`) ayrıca kaydedilebilir.
 - **Enjeksiyon dayanıklılığı kanıtlanmadı.** Testler, talimat içeren soru ve belgenin modele yalnızca veri olarak gittiğini ve sunucu doğrulamasının sürdüğünü gösterir; canlı modelin talimata uyup uymadığını göstermez.
 - **Kaynak doğrulaması anlamsal değildir** (K25). Doğru bölüme atıf yapan yanlış bir süre geçebilir; bunu yalnızca eval ve insan incelemesi yakalar.
 - **Retrieval kaçırması "belgede yok" gibi görünür.** İlk k'ya girmeyen bir bölümü model hiç görmez; o konuyu eksik konu olarak yazar. Sunucunun cümlesi "bu istekteki belgelerle yanıtlanamayan konular" der; yine de okuyan kişi retrieval hatasını gerçek bilgi yokluğundan ayıramaz. Teşhis için `retrieved_chunk_ids` ve logdaki skorlar gerekir.
 - **Belgeler arası anlamsal denetim yok.** Loader yalnızca yapıyı ve metadata tutarlılığını denetler. Belge gövdesinde yanlış yazılmış bir kuralı (ör. D04'te "30" yerine "40") veya metadata ile ilişkilendirilmemiş iki belge arasındaki çelişkiyi yakalamaz; gövdedeki tarih ifadeleri de metadata ile karşılaştırılmaz.
 - **Belgeyi yerinde düzenlemek sürümü değiştirmez.** Bir provada `D04#sure` metni yerinde değiştirildi: fingerprint değişti, indeks yeniden üretildi, yeni alıntı döndü; ama cevaptaki `version` yine `2.0` idi. Hangi metnin kullanıldığını o zaman yalnızca fingerprint (readiness, eval metadata) gösterir. Politika değişikliği yeni bir sürüm ve tarihlerle yapılmalıdır; yerinde düzenleme yazım düzeltmesi içindir.
-- **Tarih hesabı yapılmaz.** Model, bölümde yazmayan bir değeri hesaplamaz (K24): "geçen hafta teslim aldı, yetişir mi?" sorusunda 30 takvim günü kuralını verir, kesin tarih verilmediği için sonucu eksik konu olarak bırakır. Resmî tatil ve gün sayma kuralı (ilk gün dâhil mi) belgelerde tanımlı değildir.
+- **Tarih hesabı yapılmaz.** Model, bölümde yazmayan bir değeri hesaplamaz (K24): "geçen hafta teslim aldı, yetişir mi?" sorusunda 30 takvim günü kuralını verir, sonucu eksik konu olarak bırakır. İki kesin tarih verilse de hesaplamaz: holdout H09'da (10 Eylül teslim, 4 Ekim talep) iki koşuda da `partial` döndü. Bu, uydurma gün sayımını önlemenin bedelidir. Resmî tatil ve gün sayma kuralı (ilk gün dâhil mi) belgelerde tanımlı değildir.
 - **Tarihsel soru `as_of` ister.** Serbest metinden tarih okunmaz. Soru başka bir tarihi soruyor ama istek o tarihe ayarlı değilse modelin `as_of_required` ile bunu söylemesi beklenir; bu davranış prompt'a bağlıdır. `answer-v5` gelecek ifadelerini ("yarın") da sayar ve teslim gibi başka bir olayın tarihini kuralın tarihi saymaz. Değerlendirme setinde böyle bir soru yok (E16 doğru `as_of` ile sorulur); teslim öncesi uçtan uca denemede `as_of` verilmeden "1 Haziran 2026'da iade süresi neydi?" sorusu `as_of_required` döndü. Bu tek gözlemdir, oran değildir.
 - **Üretim için eksik olanlar.** Kimlik doğrulama ve belge bazlı yetkilendirme yoktur; kapsam filtresi yetkilendirme değildir. Tenant izolasyonu, TLS ve ağ kontrolleri, saklama ve silme politikası, sağlayıcı ve veri aktarımı değerlendirmesi, güvenlik incelemesi ve yük/ölçek testi yapılmadı.
 - **ASCII olmayan HTTP başlığı.** Kestrel, ASCII olmayan bir başlık değerini (ör. `X-Request-ID: accept.çok`) uygulama koduna ulaşmadan gövdesiz 400 ile reddeder; bu durumda hata sözleşmesi ve request ID dönmez (temiz kopya denetiminde görüldü).
