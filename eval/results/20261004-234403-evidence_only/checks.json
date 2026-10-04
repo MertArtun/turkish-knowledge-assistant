@@ -1,0 +1,523 @@
+{
+  "metadata": {
+    "run_id": "20261004-234403-evidence_only",
+    "started_at": "2026-10-04T23:44:03+03:00",
+    "finished_at": "2026-10-04T23:44:03+03:00",
+    "mode": "evidence_only",
+    "api": "http://127.0.0.1:8080",
+    "request_timeout_seconds": 60,
+    "question_count": 18,
+    "questions_sha256": "0eacc9cc6eb940799445adcbc915d4b65fba2879c0730885dbc4dfbd12f85a69",
+    "git": {
+      "commit": "3b5a89fe20201916c29358f1c3f1606e90acf01e",
+      "dirty": false,
+      "dirty_paths": []
+    },
+    "readiness": {
+      "app_mode": "evidence_only",
+      "generation_configured": true,
+      "llm_model": "openai/gpt-6-luna",
+      "embedding_model": "intfloat/multilingual-e5-small",
+      "embedding_revision": "614241f622f53c4eeff9890bdc4f31cfecc418b3",
+      "corpus_fingerprint": "55d45d25ffa72941dcd7cec7ef541aa1ef2d0948d96ad54a9ba32a4071efea18",
+      "prompt_version": "answer-v3",
+      "prompt_hash": "7f449d1c767f65b1e458f602ffc57247e407e0ece217528702b2e8b868ada411",
+      "top_k": 4,
+      "min_retrieval_score": null
+    },
+    "readiness_unchanged": true,
+    "as_of_note": "İsteklerdeki as_of değerlendirilen iş tarihidir (E16 dışında 2026-10-04, E16'da 2026-06-01); gerçek çalıştırma zamanıyla aynı kavram değildir."
+  },
+  "summary": {
+    "http": {
+      "passed": 18,
+      "applicable": 18,
+      "failed": [],
+      "not_evaluable": []
+    },
+    "status": {
+      "passed": 15,
+      "applicable": 15,
+      "failed": [],
+      "not_evaluable": []
+    },
+    "retrieval": {
+      "passed": 15,
+      "applicable": 15,
+      "failed": [],
+      "not_evaluable": []
+    },
+    "citation": {
+      "passed": 0,
+      "applicable": 0,
+      "failed": [],
+      "not_evaluable": []
+    },
+    "version": {
+      "passed": 6,
+      "applicable": 6,
+      "failed": [],
+      "not_evaluable": []
+    },
+    "source_validity": {
+      "passed": 18,
+      "applicable": 18,
+      "failed": [],
+      "not_evaluable": []
+    },
+    "no_unnecessary_refusal": {
+      "passed": 0,
+      "applicable": 0,
+      "failed": [],
+      "not_evaluable": []
+    },
+    "no_claims_when_unanswerable": {
+      "passed": 0,
+      "applicable": 0,
+      "failed": [],
+      "not_evaluable": []
+    },
+    "required_facts": {
+      "passed": 0,
+      "applicable": 0,
+      "failed": [],
+      "not_evaluable": []
+    },
+    "forbidden_facts": {
+      "passed": 0,
+      "applicable": 0,
+      "failed": [],
+      "not_evaluable": []
+    }
+  },
+  "multi_source_summary": {
+    "retrieval": {
+      "passed": 1,
+      "applicable": 1,
+      "failed": [],
+      "not_evaluable": []
+    },
+    "citation": {
+      "passed": 0,
+      "applicable": 0,
+      "failed": [],
+      "not_evaluable": []
+    }
+  },
+  "questions": [
+    {
+      "id": "E01",
+      "category": "normal",
+      "request_id": "eval.20261004-234403-evidence_only.E01",
+      "http_status": 200,
+      "elapsed_ms": 65,
+      "expected_status": "evidence_only",
+      "actual_status": "evidence_only",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "n/a",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "n/a",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E02",
+      "category": "normal",
+      "request_id": "eval.20261004-234403-evidence_only.E02",
+      "http_status": 200,
+      "elapsed_ms": 12,
+      "expected_status": "evidence_only",
+      "actual_status": "evidence_only",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "n/a",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "n/a",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E03",
+      "category": "version_conflict",
+      "request_id": "eval.20261004-234403-evidence_only.E03",
+      "http_status": 200,
+      "elapsed_ms": 23,
+      "expected_status": "evidence_only",
+      "actual_status": "evidence_only",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "n/a",
+        "version": "pass",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "n/a",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E04",
+      "category": "version_conflict",
+      "request_id": "eval.20261004-234403-evidence_only.E04",
+      "http_status": 200,
+      "elapsed_ms": 12,
+      "expected_status": "evidence_only",
+      "actual_status": "evidence_only",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "n/a",
+        "version": "pass",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "n/a",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E05",
+      "category": "normal",
+      "request_id": "eval.20261004-234403-evidence_only.E05",
+      "http_status": 200,
+      "elapsed_ms": 16,
+      "expected_status": "evidence_only",
+      "actual_status": "evidence_only",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "n/a",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "n/a",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E06",
+      "category": "normal",
+      "request_id": "eval.20261004-234403-evidence_only.E06",
+      "http_status": 200,
+      "elapsed_ms": 18,
+      "expected_status": "evidence_only",
+      "actual_status": "evidence_only",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "n/a",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "n/a",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E07",
+      "category": "normal",
+      "request_id": "eval.20261004-234403-evidence_only.E07",
+      "http_status": 200,
+      "elapsed_ms": 16,
+      "expected_status": "evidence_only",
+      "actual_status": "evidence_only",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "n/a",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "n/a",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E08",
+      "category": "normal",
+      "request_id": "eval.20261004-234403-evidence_only.E08",
+      "http_status": 200,
+      "elapsed_ms": 14,
+      "expected_status": "evidence_only",
+      "actual_status": "evidence_only",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "n/a",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "n/a",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E09",
+      "category": "normal",
+      "request_id": "eval.20261004-234403-evidence_only.E09",
+      "http_status": 200,
+      "elapsed_ms": 29,
+      "expected_status": "evidence_only",
+      "actual_status": "evidence_only",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "n/a",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "n/a",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E10",
+      "category": "normal",
+      "request_id": "eval.20261004-234403-evidence_only.E10",
+      "http_status": 200,
+      "elapsed_ms": 16,
+      "expected_status": "evidence_only",
+      "actual_status": "evidence_only",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "n/a",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "n/a",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E11",
+      "category": "unanswerable",
+      "request_id": "eval.20261004-234403-evidence_only.E11",
+      "http_status": 200,
+      "elapsed_ms": 24,
+      "expected_status": null,
+      "actual_status": "evidence_only",
+      "checks": {
+        "http": "pass",
+        "status": "n/a",
+        "retrieval": "n/a",
+        "citation": "n/a",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "n/a",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E12",
+      "category": "unanswerable",
+      "request_id": "eval.20261004-234403-evidence_only.E12",
+      "http_status": 200,
+      "elapsed_ms": 17,
+      "expected_status": null,
+      "actual_status": "evidence_only",
+      "checks": {
+        "http": "pass",
+        "status": "n/a",
+        "retrieval": "n/a",
+        "citation": "n/a",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "n/a",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E13",
+      "category": "unanswerable",
+      "request_id": "eval.20261004-234403-evidence_only.E13",
+      "http_status": 200,
+      "elapsed_ms": 20,
+      "expected_status": null,
+      "actual_status": "evidence_only",
+      "checks": {
+        "http": "pass",
+        "status": "n/a",
+        "retrieval": "n/a",
+        "citation": "n/a",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "n/a",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E14",
+      "category": "paraphrase",
+      "request_id": "eval.20261004-234403-evidence_only.E14",
+      "http_status": 200,
+      "elapsed_ms": 12,
+      "expected_status": "evidence_only",
+      "actual_status": "evidence_only",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "n/a",
+        "version": "pass",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "n/a",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E15",
+      "category": "partial",
+      "request_id": "eval.20261004-234403-evidence_only.E15",
+      "http_status": 200,
+      "elapsed_ms": 25,
+      "expected_status": "evidence_only",
+      "actual_status": "evidence_only",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "n/a",
+        "version": "pass",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "n/a",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E16",
+      "category": "historical_version",
+      "request_id": "eval.20261004-234403-evidence_only.E16",
+      "http_status": 200,
+      "elapsed_ms": 14,
+      "expected_status": "evidence_only",
+      "actual_status": "evidence_only",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "n/a",
+        "version": "pass",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "n/a",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E17",
+      "category": "false_premise",
+      "request_id": "eval.20261004-234403-evidence_only.E17",
+      "http_status": 200,
+      "elapsed_ms": 16,
+      "expected_status": "evidence_only",
+      "actual_status": "evidence_only",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "n/a",
+        "version": "n/a",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "n/a",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    },
+    {
+      "id": "E18",
+      "category": "multi_source",
+      "request_id": "eval.20261004-234403-evidence_only.E18",
+      "http_status": 200,
+      "elapsed_ms": 15,
+      "expected_status": "evidence_only",
+      "actual_status": "evidence_only",
+      "checks": {
+        "http": "pass",
+        "status": "pass",
+        "retrieval": "pass",
+        "citation": "n/a",
+        "version": "pass",
+        "source_validity": "pass",
+        "no_unnecessary_refusal": "n/a",
+        "no_claims_when_unanswerable": "n/a",
+        "required_facts": "n/a",
+        "forbidden_facts": "n/a"
+      },
+      "problems": [],
+      "human_review": "pending"
+    }
+  ]
+}

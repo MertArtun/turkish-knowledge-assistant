@@ -443,7 +443,72 @@ class RecordingTests(unittest.TestCase):
         self.assertIsNotNone(recorded["transport_error"])
 
 
-class QuestionSetTests(unittest.TestCase):
+class RunIdentityTests(unittest.TestCase):
+    def test_run_id_names_any_question_set_other_than_the_default(self):
+        started = run_eval.datetime(2026, 10, 5, 1, 2, 3)
+
+        self.assertEqual(
+            run_eval.run_id_for(started, "generative", run_eval.DEFAULT_QUESTIONS),
+            "20261005-010203-generative",
+        )
+        self.assertEqual(
+            run_eval.run_id_for(started, "generative", run_eval.EVAL_DIR / "extra_questions.jsonl"),
+            "20261005-010203-generative-extra",
+        )
+
+    def test_as_of_note_names_the_dates_used_by_this_question_set(self):
+        questions = [
+            {"id": "X01", "request": {"as_of": "2026-10-04"}},
+            {"id": "X02", "request": {"as_of": "2026-10-04"}},
+            {"id": "X03", "request": {"as_of": "2026-03-15"}},
+        ]
+
+        note = run_eval.as_of_note(questions)
+
+        self.assertIn("2026-10-04 (2 soru)", note)
+        self.assertIn("2026-03-15 (X03)", note)
+        self.assertIn("gerçek çalıştırma zamanıyla aynı kavram değildir", note)
+
+
+class DirtyPathTests(unittest.TestCase):
+    def test_porcelain_paths_keep_their_first_letter(self):
+        # "git status --porcelain" starts a line with a space for an unstaged change; stripping
+        # the whole output used to cut the first path to "val/run_eval.py".
+        porcelain = " M eval/run_eval.py\n?? data/knowledge/11-new.md\n"
+
+        self.assertEqual(
+            run_eval.dirty_paths(porcelain), ["eval/run_eval.py", "data/knowledge/11-new.md"]
+        )
+
+
+class PatternGroundingMixin:
+    """Applied to every question set: a required pattern must hold for the expected section's own
+    wording (the corpus states the fact), and a forbidden pattern must not hit that wording."""
+
+    def test_required_patterns_match_the_expected_sections_own_text(self):
+        for question in self.questions:
+            texts = [self.sections[chunk]["quote"] for chunk in question["expected_source_ids"]]
+            for fact in question["required_facts"]:
+                if fact["pattern"] and texts:
+                    self.assertTrue(
+                        any(re.search(fact["pattern"], text, re.IGNORECASE) for text in texts),
+                        f"{question['id']}: {fact['pattern']}",
+                    )
+
+    def test_forbidden_patterns_never_match_an_expected_section(self):
+        for question in self.questions:
+            for chunk in question["expected_source_ids"]:
+                for fact in question["forbidden_facts"]:
+                    if fact["pattern"]:
+                        self.assertIsNone(
+                            re.search(
+                                fact["pattern"], self.sections[chunk]["quote"], re.IGNORECASE
+                            ),
+                            f"{question['id']} {chunk}: {fact['pattern']}",
+                        )
+
+
+class QuestionSetTests(PatternGroundingMixin, unittest.TestCase):
     """The evaluation set itself: the brief's 18 questions with checkable expectations."""
 
     @classmethod

@@ -4,7 +4,7 @@ Kurgu şirket **Yardım bende Destek Teknolojileri**'nin destek çalışanına, 
 
 > Tamamen kurgu verilerle hazırlanmış değerlendirme demosudur. Üretim güvenliği veya KVKK/BDDK uyumu iddia edilmez.
 
-**Durum:** İki mod da uçtan uca çalışıyor ve Docker Compose ile birlikte ayağa kalkıyor. Alıntı modu (`evidence_only`) anahtarsız çalışır ve model çağırmaz. Üretken mod (kaynaklı LLM cevabı ve sunucu tarafı kaynak doğrulaması) varsayılan testlerde sahte model/HTTP katmanıyla, canlı olarak da 18 soruluk değerlendirmenin üretken koşularıyla denendi. Bölümleme ve prompt değişikliğinden sonraki iki koşuda 18 sorunun 17'si beklenen durumu verdi ve beklenen bölüm 15 cevaplanabilir sorunun 15'inde ilk 4'teydi (ilk koşuda 14/18 ve 12/15). Otomatik kontrollerin sonuçları ve eski koşuyla farkı: [`docs/decisions.md`](docs/decisions.md), "Değerlendirme bulguları". Kök neden analizi ve insan incelemesi henüz yapılmadı.
+**Durum:** İki mod da uçtan uca çalışıyor ve Docker Compose ile birlikte ayağa kalkıyor. Alıntı modu (`evidence_only`) anahtarsız çalışır ve model çağırmaz. Üretken mod (kaynaklı LLM cevabı ve sunucu tarafı kaynak doğrulaması) varsayılan testlerde sahte model/HTTP katmanıyla, canlı olarak da 18 soruluk değerlendirmenin üretken koşularıyla denendi. Son iki koşuda (belgeler uzatılıp prompt `answer-v5`'e ve kaynak etiketlerine geçildikten sonra) 18 sorunun 18'i beklenen durumu verdi ve beklenen bölüm 15 cevaplanabilir sorunun 15'inde ilk 4'teydi (ilk koşuda 14/18 ve 12/15). İki koşu bir başarı oranı değildir; bu 18 soru ayar sırasında da kullanıldığı için sonuç bağımsız bir ölçüm de değildir. Otomatik kontrollerin sonuçları ve eski koşuyla farkı: [`docs/decisions.md`](docs/decisions.md), "Değerlendirme bulguları". Kök neden analizi ve insan incelemesi henüz yapılmadı.
 
 ## Mimari akış
 
@@ -46,7 +46,7 @@ Proje yolunda ASCII olmayan bir karakter varsa (ör. `ı`) derleme komutunu `COM
 
 ## Üretken mod (LLM ile kaynaklı cevap)
 
-`"mode": "generative"` isteğinde sürüm görünümünden getirilen `TOP_K` bölüm (varsayılan 4, en fazla 8), soru, etkin tarih ve kapsamla birlikte dil modeline gider. Model yalnızca kısa iddialar (claim) ve her biri için bölüm ID'leri döndürür. Sunucu her ID'nin bu istekte verilen bölümlerden biri olduğunu ve durumun iddialarla tutarlı olduğunu denetler, cevabı ve birebir alıntıları kendisi kurar. Kurallara uymayan çıktı düzeltilmez, 502 `invalid_generation_output` olur. Sağlayıcı hataları 503 `provider_unavailable` veya 504 `generation_timeout` döner; hiçbiri "belgede bilgi yok" sayılmaz ve alıntı moduna düşülmez. Kurallar: [`docs/project-spec.md`](docs/project-spec.md) §5 "Üretim".
+`"mode": "generative"` isteğinde sürüm görünümünden getirilen `TOP_K` bölüm (varsayılan 4, en fazla 8), soru, etkin tarih ve kapsamla birlikte dil modeline gider. Model bölümleri bu isteğe özel etiketlerle (`S1`, `S2`, …) görür ve yalnızca kısa iddialar (claim) ile her biri için bu etiketleri döndürür. Sunucu her etiketin bu istekte verilen bir bölüme karşılık geldiğini ve durumun iddialarla tutarlı olduğunu denetler, etiketleri bölüm ID'lerine çevirir, cevabı ve birebir alıntıları kendisi kurar. Kurallara uymayan çıktı düzeltilmez, 502 `invalid_generation_output` olur. Sağlayıcı hataları 503 `provider_unavailable` veya 504 `generation_timeout` döner; hiçbiri "belgede bilgi yok" sayılmaz ve alıntı moduna düşülmez. Kurallar: [`docs/project-spec.md`](docs/project-spec.md) §5 "Üretim".
 
 Açmak için `.env`'e anahtarı yazın ve stack'i yeniden başlatın (`docker compose up -d --wait`; değişen ortam rag konteynerini yeniden oluşturur). Anahtar yalnızca rag konteynerine verilir.
 
@@ -130,7 +130,7 @@ dotnet format --verify-no-changes
 
 ## Değerlendirme
 
-18 soruluk küçük, görülebilir bir regresyon setidir (`eval/questions.jsonl`): normal, sürüm çelişkisi, cevapsız, kısmi, tarihsel sürüm, yanlış ön kabul ve çok kaynaklı sorular. Genellenebilir bir benchmark değildir. Runner (`eval/run_eval.py`) dış .NET API'sini HTTP ile çağırır ve yalnızca Python standart kütüphanesini kullanır (Python 3.12 ve 3.14 ile denendi). Kontrollerin tanımı: [`docs/project-spec.md`](docs/project-spec.md) §7.
+18 soruluk küçük, görülebilir bir regresyon setidir (`eval/questions.jsonl`): normal, sürüm çelişkisi, cevapsız, kısmi, tarihsel sürüm, yanlış ön kabul ve çok kaynaklı sorular. Genellenebilir bir benchmark değildir. İlk koşudan sonra hata ayıklamada da kullanıldığı için son sonuçları bağımsız bir ölçüm değil, regresyon kontrolüdür ([`docs/decisions.md`](docs/decisions.md), K29). Runner (`eval/run_eval.py`) dış .NET API'sini HTTP ile çağırır ve yalnızca Python standart kütüphanesini kullanır (Python 3.12 ve 3.14 ile denendi). Kontrollerin tanımı: [`docs/project-spec.md`](docs/project-spec.md) §7.
 
 Repo kökünden, stack çalışırken (yukarıdaki `docker compose up --build -d --wait`):
 
@@ -144,7 +144,7 @@ docker compose logs --no-log-prefix rag | grep '"eval\.<run_id>\.' > eval/result
 
 Her koşu `eval/results/<run_id>/` altına `actual.jsonl` (her HTTP cevabı, hatalar dâhil), `checks.json` (koşu bilgileri ve kontroller) ve `report.md` (beklenen ve gerçek karşılaştırması) yazar. `generative` koşu, stack'te anahtar yoksa hiç istek göndermeden durur. `docker compose logs` yalnızca çalışan konteynerlerin logunu gösterir; log satırları konteyner yeniden oluşturulmadan önce alınmalıdır.
 
-Commit edilen koşular: ilk koşular (alıntı ve üretken, birer kez) ve bölümleme/prompt değişikliğinden sonraki koşular (alıntı bir, üretken iki kez); eski sonuçlar silinmedi ([`docs/decisions.md`](docs/decisions.md), "Değerlendirme bulguları"; her sorunun beklenen ve gerçek çıktısı ilgili `report.md`'de).
+Commit edilen koşular: ilk koşular (alıntı ve üretken, birer kez), bölümleme ve `answer-v2` sonrası, `answer-v3` ara koşuları ve son `answer-v5` koşuları (her biri alıntı bir, üretken iki kez); eski sonuçlar silinmedi ([`docs/decisions.md`](docs/decisions.md), "Değerlendirme bulguları"; her sorunun beklenen ve gerçek çıktısı ilgili `report.md`'de).
 
 ## Belgeler değişince yeniden indeksleme
 
@@ -170,10 +170,10 @@ Commit edilen koşular: ilk koşular (alıntı ve üretken, birer kez) ve bölü
 ## Sınırlar
 
 - Kaynak doğrulaması anlamsal değildir: doğru bölüme atıf yapan yanlış bir sayı geçebilir. Bunu yalnızca değerlendirme ve insan incelemesi yakalar.
-- Skor eşiği kapalıdır; cevapsız sorularda da aday bölüm döner. Retrieval bu küçük sette 15/15, farklı ifadelerde beklenen bölüm yine ilk 4'ün dışında kalabilir.
+- Skor eşiği kapalıdır; cevapsız sorularda da aday bölüm döner. Retrieval bu küçük sette 15/15 (geliştirme setinde 20/20); nadir eş anlamlılarda, yazım hatalı sorularda ve tek mesajda çok sayıda soru sorulduğunda beklenen bölüm ilk 4'ün dışında kalabilir.
 - Tarihsel cevap için `as_of` istekte verilmelidir; sorudaki tarih okunmaz.
 - Kimlik doğrulama, belge bazlı yetkilendirme, TLS, saklama politikası ve yük testi yoktur; kapsam filtresi yetkilendirme değildir.
-- Canlı üretim deterministik değildir (aynı ayarlarla iki koşu bazı sorularda farklı durum verdi) ve sonuçlar insan tarafından incelenmedi.
+- Canlı üretim deterministik değildir (aynı ayarlarla iki koşu bazı sorularda farklı durum verdi); model çıktısı kurallara uymazsa düzeltilmez, 502 olur. Sonuçlar insan tarafından incelenmedi.
 
 Tam liste ve gerekçeler: [`docs/decisions.md`](docs/decisions.md), "Bilinen sınırlar".
 

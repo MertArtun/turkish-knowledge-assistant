@@ -20,7 +20,7 @@ Kurgu bir şirketin destek çalışanına, onaylı bilgi belgelerine dayanarak T
 
 İşveren .NET ve FastAPI'yi **önermiştir**; ikisi de zorunlu değildir. Arayüz ve çok ajanlı yapı istenmemiştir.
 
-**Bizim tercihlerimiz (zorunlu değil):** .NET + FastAPI iki servis; 18 soruluk eval ve 9 geliştirme sorusu; alıntı modu (`evidence_only`); readiness/loglama/timeout gibi işletim ayrıntıları; Docker Compose; `retrieved_chunk_ids` ile dış API üzerinden retrieval ölçümü.
+**Bizim tercihlerimiz (zorunlu değil):** .NET + FastAPI iki servis; 18 soruluk eval ve 20 geliştirme sorusu; alıntı modu (`evidence_only`); readiness/loglama/timeout gibi işletim ayrıntıları; Docker Compose; `retrieved_chunk_ids` ile dış API üzerinden retrieval ölçümü.
 
 ## 2. Korpus
 
@@ -283,12 +283,14 @@ Uygulama: `eval/run_eval.py` (yalnızca Python standart kütüphanesi; servis ko
 
 Ayrıca 20 geliştirme sorusu `eval/dev_questions.jsonl` içindedir (`id`, `category`, `request`, `expected_source_ids`); her belgenin zorunlu bölümü en az bir soruyla ölçülür. Eşik ve bölümleme kararları önce onlarda denenir (`src/rag_service/measure_retrieval.py`).
 
+E01–E18 ilk koşudan sonra hata ayıklamada kullanıldı; prompt ve korpus değişikliklerinin bir kısmı bu sorularda görülen hatalardan çıktı. Sonuçları bu yüzden bağımsız bir doğruluk ölçümü değil, regresyon kontrolüdür (`docs/decisions.md`, K29). Değerlendirme setinde her gerekli kalıp beklenen bölümün kendi metnine uyar, her yasak kalıp uymaz (test edilir).
+
 **Koşu.**
 - Runner .NET'in `POST /api/ask` ucunu çağırır. İstek başına timeout 60 sn'dir, .NET'in 45 sn'sinden uzun; böylece yavaş bir cevap istemci timeout'u değil API'nin kendi 504'ü olarak kaydedilir. Her soruya `X-Request-ID: eval.<run_id>.<id>` gönderilir; servis loglarındaki satırlar bu ID ile bulunur.
 - HTTP hataları ve bağlantı hataları da gerçek çıktı olarak kaydedilir; hiçbir soru tekrar denenmez.
 - Koşudan önce `/health/ready` okunur. Servis hazır değilse koşu başlamaz. `generative` koşu, `generation_configured=false` ise başlamaz (`blocked`; model çağrısı yapılmaz). Readiness koşu sonunda yeniden okunur ve değişip değişmediği kaydedilir.
 - Çıktı `eval/results/<run_id>/`: `actual.jsonl` (her HTTP alışverişi olduğu gibi), `checks.json` (metadata, soru bazında kontroller, sayılar), `report.md` (beklenen ve gerçek karşılaştırması).
-- Metadata: gerçek başlangıç ve bitiş zamanı; commit SHA ve dirty bayrağı (`src`, `data`, `compose.yaml` veya eval dosyaları commit'ten farklı mı); readiness'taki `run_metadata` (corpus fingerprint, embedding modeli ve revision'ı, LLM modeli, prompt sürümü ve hash'i, `top_k`, eşik); mod; soru sayısı ve soru dosyasının SHA-256'sı (soru veya rubrik değişince değişir). İstekteki `as_of` değerlendirilen iş tarihidir, gerçek çalıştırma tarihi değildir.
+- Metadata: gerçek başlangıç ve bitiş zamanı; commit SHA ve dirty bayrağı (`src`, `data`, `compose.yaml`, `eval/run_eval.py` veya kullanılan soru dosyası commit'ten farklı mı); readiness'taki `run_metadata` (corpus fingerprint, embedding modeli ve revision'ı, LLM modeli, prompt sürümü ve hash'i, `top_k`, eşik); mod; soru dosyasının yolu, soru sayısı ve SHA-256'sı (soru veya rubrik değişince değişir). Varsayılan dışındaki bir soru dosyasının (`--questions`) koşu kimliği dosyanın adıyla biter. İstekteki `as_of` değerlendirilen iş tarihidir, gerçek çalıştırma tarihi değildir.
 
 **Kontroller.** Her kontrol her soru için `pass`, `fail`, `n/a` (bu soruya ve moda uygulanmaz) veya `not_evaluable` (uygulanır ama API kullanılabilir bir cevap dönmedi) olur. Rapor her kontrol için geçen/uygulanan sayısını, başarısız ve değerlendirilemeyen soruların ID'lerini verir; tek bir başarı yüzdesi verilmez.
 

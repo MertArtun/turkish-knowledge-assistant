@@ -111,6 +111,7 @@
 - **Seçim:**
   - Zorunlu bölümler tek kuralı koşuluyla birlikte taşır. D04 `sure`/`kargo` ve D05 `bedel` metinleri, sözleşme fixture'larındaki alıntılarla birebir aynıdır; bir test bunu denetler.
   - Her belgede yalnızca o konuya özgü açıklayıcı bölümler var (`kullanim`, `sinir`, `iletisim` vb.).
+  - Bir kuralın tetikleyicisi (hangi durumda, hangi kanalda uygulandığı) kuralla aynı bölümdedir; `kullanim` bölümü yalnızca belgenin konusunu söyler.
   - İade belgelerinde süre kuralı, başlangıç noktası (teslim tarihi) ve kapsamı (TR/B2B/MH-10) tek `sure` bölümündedir; `uygulama` bölümü yalnızca hangi sürümün uygulanacağını (iade talebinin açıldığı tarih) açıklar. D05'te iş günü tanımı `bedel` kuralının içindedir; `kullanim` bölümü yalnızca belgenin konusunu söyler.
   - Politika sayıları (14/30 gün, 5 iş günü, 2 çalışma saati, 09.00–18.00) yalnızca zorunlu bölümde geçer.
 - **Alternatif:**
@@ -123,11 +124,12 @@
   - Sayının tek bölümde durması, beklenen kaynağı (`D04#sure`) belirsizleştirmez.
   - Fixture'lar iki dilin ortak sözleşme örneğidir ve alıntıları korpusla birebir aynı olmak zorundadır; bölümleme değişikliğinde alıntılar korpusun yeni metniyle güncellendi (bir test denetler).
 - **Bedel:**
-  - Belgeler bölüm başlıkları dâhil 50–122 kelimedir; 10 belgeden 8'i 120'nin altında, D05 50 kelimedir. Uzunluk için yeni kural eklenmedi.
+  - Belgeler bölüm başlıkları dâhil 97–138 kelimedir (ilk hâlinde 50–122). Uzunluk için yeni kural eklenmedi. D05 97 kelimeyle hâlâ 120'nin altındadır: tek kuralı olan bu belgeye ayrı bir "ödeme süresini aktarma" bölümü denendi; bu bölüm iade sorularında ilk 4'e girip başka belgelerin bölümlerini dışarı itti ve "önce iadenin kabul edilip edilmediğini öğrenin" cümlesi bir geliştirme sorusunda gereksiz `partial` doğurdu. Bu yüzden aktarma notu `bedel` bölümünün içinde kaldı.
   - Açıklayıcı bölümler ek chunk'tır ve aramada zorunlu bölümün önüne geçebilir.
   - Belge metnindeki tarih ifadeleri ("1 Temmuz 2026 ve sonrasında açılan talepler") metadata ile otomatik karşılaştırılmaz.
 - **Değişiklik (2026-10-04):** İlk değerlendirmede üç soruda (E15, E16, E18) beklenen `sure` bölümü ilk 4'te değildi. D03/D04'te ayrı duran `tarihler` bölümü `sure` ile, D05'te `is-gunu` bölümü `bedel` ile birleştirildi; D05#kullanim'deki, belgenin iade süresini ve kargoyu anlatmadığını söyleyen yönlendirme cümlesi çıkarıldı. Bölüm sayısı 32'den 29'a indi. Etki önce 9 geliştirme sorusunda ölçüldü (K17), ardından değerlendirme yeniden koşuldu.
-- **Ne zaman değişir:** Yeni ölçüm beklenen bölümün yine ilk k dışında kaldığını gösterirse önce aynı yöntemle (kuralı tek bölümde tutmak, yönlendirme metnini azaltmak) devam edilir; bu yetmezse K17'deki alternatifler ölçülerek denenir.
+- **İkinci değişiklik (2026-10-04):** Geliştirme seti 20 soruya çıkınca (K17) iki soruda beklenen bölüm ilk 4'te değildi: "müşteri beni duymuyor" sorusunda `D02#ses-yok` 8. sırada, yeni temsilcinin kurulum sorusunda `D01#baglanti` 5. sıradaydı. İkisinde de tetikleyici (müşterinin temsilciyi duyamaması; yeni temsilci veya başka bilgisayar) yalnızca `kullanim` bölümünde yazıyordu; kural bölümüne taşındı. Aynı ilkeyle D10'da paylaşma kuralı kanalını (görüşme, destek talebi) söyler ve müşterinin kodu yazması ya da görüşmede okuması da "müşteri paylaşmak isterse" bölümünde yer alır. Belgelerin örtük bıraktığı üç şey açıkça yazıldı: hafta sonu destek saatlerinin dışındadır, cumartesi ve pazar iş günü değildir, P1 dışındaki öncelik seviyeleri tanımlı değildir. Ayrıca müşteriye aktarma notları eklendi (sayı tekrar edilmeden). D03'ün metni 1.0'ın bitişini de söyler ("1 Temmuz 2026'dan önce açılan iade talepleri", D04'ün kendi ifadesiyle); önceden bitiş yalnızca metadata'daydı ve 30 Haziran'da "yarın açılacak talep" sorulunca model açık uçlu cümleyi uyguladı. Yeni süre, ücret veya koşul yoktur; D04 değişmedi, bölüm sayısı 29. Etki önce geliştirme sorularında ölçüldü (K17), sonra değerlendirme koşuldu.
+- **Ne zaman değişir:** Yeni ölçüm beklenen bölümün yine ilk k dışında kaldığını gösterirse önce aynı yöntemle (kuralı ve tetikleyicisini tek bölümde tutmak, yönlendirme metnini azaltmak) devam edilir; bu yetmezse K17'deki alternatifler ölçülerek denenir.
 
 ### K12 — Sürüm çakışması: yüklemede ret, seçimde ayrıca koruma
 - **Seçim:** Onaylı sürümlerin tarih çakışması `load_corpus` içinde reddedilir; asıl kontrol budur. `select_versions` ise bir tarihte birden çok geçerli sürüm görürse seçim yapmaz, `CorpusError` verir.
@@ -243,6 +245,34 @@
   | DEV09 | `D05#bedel` | 1, 0,8745 | 1, 0,8741 | `D05#bedel` (0,8741) |
 
   - Hiçbir soruda beklenen bölümün sırası düşmedi; DEV03 ve DEV06'da yükseldi. Geliştirme setinde önce de sonra da beklenen bölümlerin tamamı ilk 4'teydi; asıl etki değerlendirme koşusunda ölçülür. Eşik kararı değişmedi: cevapsız DEV04'ün en yüksek skoru (0,8610) hâlâ cevaplanabilir soruların skor aralığında.
+- **İkinci bölümleme ölçümü (K11 ikinci değişiklik):** Geliştirme seti 11 soruyla 20'ye çıktı (DEV10–DEV20: kurulum, ses sorunu, ticket yazımı, P1, destek saatleri ve saat dilimi, sıfırlama e-postası, OTP okuma, 2.0 sürümünde kargo etiketi ve iki kaynaklı bir soru); her belgenin zorunlu bölümü en az bir soruyla ölçülür. Aynı komutla değişiklikten önce ve sonra:
+
+  | Soru | Beklenen | Önce (sıra, skor) | Sonra (sıra, skor) | Sonra 1. sonuç |
+  |---|---|---|---|---|
+  | DEV01 | `D10#paylasim` | 3, 0,8686 | 3, 0,8722 | `D10#musteri-istegi` (0,8786) |
+  | DEV02 | `D09#eposta` | 1, 0,9130 | 1, 0,9135 | `D09#eposta` (0,9135) |
+  | DEV03 | `D03#kargo` | 1, 0,8593 | 1, 0,8850 | `D03#kargo` (0,8850) |
+  | DEV04 | — | — | — | `D01#kullanim` (0,8607) |
+  | DEV05 | `D03#sure` | 1, 0,8701 | 1, 0,8701 | `D03#sure` (0,8701) |
+  | DEV06 | `D04#sure`, `D05#bedel` | 2, 0,8834; 1, 0,8940 | 2, 0,8834; 1, 0,8950 | `D05#bedel` (0,8950) |
+  | DEV07 | `D04#sure` | 1, 0,8826 | 1, 0,8826 | `D04#sure` (0,8826) |
+  | DEV08 | `D03#sure` | 1, 0,8907 | 1, 0,8907 | `D03#sure` (0,8907) |
+  | DEV09 | `D05#bedel` | 1, 0,8741 | 1, 0,8784 | `D05#bedel` (0,8784) |
+  | DEV10 | `D01#baglanti` | 5, 0,8305 | 4, 0,8374 | `D01#tamamlama` (0,8656) |
+  | DEV11 | `D02#ses-yok` | 8, 0,8086 | 1, 0,8646 | `D02#ses-yok` (0,8646) |
+  | DEV12 | `D06#dogruluk` | 1, 0,8812 | 1, 0,8813 | `D06#dogruluk` (0,8813) |
+  | DEV13 | `D07#p1` | 3, 0,8323 | 2, 0,8379 | `D07#kullanim` (0,8416) |
+  | DEV14 | `D07#p1` | 1, 0,8870 | 1, 0,8859 | `D07#p1` (0,8859) |
+  | DEV15 | `D08#saatler` | 2, 0,8485 | 2, 0,8510 | `D08#kullanim` (0,8697) |
+  | DEV16 | `D08#saat-dilimi` | 2, 0,8837 | 1, 0,8911 | `D08#saat-dilimi` (0,8911) |
+  | DEV17 | `D09#eposta` | 1, 0,8909 | 1, 0,8900 | `D09#eposta` (0,8900) |
+  | DEV18 | `D10#musteri-istegi` | 2, 0,8647 | 2, 0,8731 | `D06#dogruluk` (0,8810) |
+  | DEV19 | `D04#kargo` | 1, 0,8672 | 1, 0,8672 | `D04#kargo` (0,8672) |
+  | DEV20 | `D02#ses-yok`, `D06#alanlar` | 4, 0,8607; 3, 0,8625 | 4, 0,8612; 1, 0,8827 | `D06#alanlar` (0,8827) |
+
+  - Önce 2 soruda (DEV10, DEV11) beklenen bölüm ilk 4'ün dışındaydı; sonra 20 sorunun tamamında ilk 4'te. Hiçbir soruda beklenen bölümün sırası düşmedi; DEV11 8'den 1'e, DEV10 5'ten 4'e, DEV20'de `D06#alanlar` 3'ten 1'e çıktı.
+  - Eşik kararı değişmedi: cevapsız DEV04'ün en yüksek skoru (0,8607) cevaplanabilir soruların skor aralığında.
+  - Denenip bırakılanlar da aynı yöntemle ölçüldü: D05'e ayrı bir aktarma bölümü ve D07/D10 `kullanim` bölümlerine "destek temsilcisi bu belgeyi … kullanır" cümlesi. Bu bölümler başka belgelerin sorularında ilk 4'e girdi; çıkarıldı (K11).
 - **Bedel:**
   - Eşik kapalı olduğu için arama cevapsız sorularda da 4 aday döndürür. Konuya yakın ama cevapsız soruların reddi, üretim aşamasındaki kanıt yeterliliği kontrolüne dayanır. Alıntı modunda bu adaylar cevap olarak değil, aday olarak sunulur.
   - Açıklayıcı bölümler (`kullanim`, `musteri-istegi`) zorunlu bölümlerle aynı ilk 4'ü paylaşıyor. DEV01'de beklenen bölüm 3. sırada. Bölümleme değişikliğinden önce DEV03'te 1. sırada, iade kargosunun kendi konusu olmadığını söyleyen `D05#kullanim` vardı; bu cümle çıkarıldıktan sonra beklenen bölüm 1. sırada.
@@ -321,26 +351,28 @@
 
 ### K24 — Modele giden veri: yalnızca JSON veri, sürümlü prompt dosyası
 - **Seçim:**
-  - Sistem talimatı ayrı dosyadadır: `app/prompts/answer.txt`. Sürümü `PROMPT_VERSION` (`answer-v2`); dosyanın SHA-256 değeri readiness'ta (`prompt_version`, `prompt_hash`) ve üretim loglarında görünür. Bir test her sürümün hash'ini sabitler; prompt değişince sürüm de değişmek zorundadır. Prompt'ta hiç rakam yoktur (bir test denetler), politika sayıları yalnızca korpusta durur.
+  - Sistem talimatı ayrı dosyadadır: `app/prompts/answer.txt`. Sürümü `PROMPT_VERSION` (`answer-v5`); dosyanın SHA-256 değeri readiness'ta (`prompt_version`, `prompt_hash`) ve üretim loglarında görünür. Bir test her sürümün hash'ini sabitler; prompt değişince sürüm de değişmek zorundadır. Prompt'ta hiç rakam yoktur (bir test denetler), politika sayıları yalnızca korpusta durur.
   - `answer-v2` (2026-10-04): Canlı denemelerde, yalnızca Almanya'yı soran bir soruda Türkiye kuralının kapsamı söylenmeden claim olarak eklendiği ve bir cevabın eksik konu olmadan `partial` döndüğü (sunucu bunu 502 ile reddetti) görüldü. Prompt'a üç kural eklendi: soru yalnızca kapsam dışını soruyorsa claim yok, `insufficient_evidence`/`unsupported_scope`; kapsam içi kural yazılırken kapsamı claim cümlesinde söylenir; `partial` yalnızca hem claim hem eksik konu varken kullanılır ve sorulmayan kural claim olarak eklenmez. Ülke adına özel kod veya yönlendirici eklenmedi; etkisi yalnızca canlı değerlendirmede görülür.
-  - Kullanıcı mesajı tek bir JSON nesnesidir: etkin tarih, etkin kapsam, soru ve getirilen `TOP_K` bölüm (`id`, `heading_path`, `text`). Eski sürümler zaten sürüm görünümünde elendiği için modele gitmez.
+  - `answer-v3` (2026-10-04): `answer-v2` ile aynı soruların tekrar tekrar sorulması şunları gösterdi: başlangıç noktası söylenip sürenin kendisi atlanıyordu ("5 iş günü"), süre verilip koşulu atlanıyordu ("P1"); soru "geri yollamak" deyince modelin bazen "fiziksel gönderim süresi belgede yok" diye sorulmayan bir eksik konu eklemesi `partial` doğuruyordu; soru tarihi `effective_as_of` ile aynıyken ("1 Haziran 2026" ve `2026-06-01`) farklı tarih sayılıyordu. Ayrıca bölümde olmayan hesaplanmış değerler (aritmetik, tarih hesabı) kaynaklı claim olarak yazılabiliyor, iç alan adları (`effective_scope`) ve soruda geçen bir e-posta adresi cevap metnine girebiliyordu. `answer-v3` bunları genel kural olarak yazar: sorulan kural değeri, birimi, başlangıç noktası ve koşuluyla birlikte verilir; eksik konu yalnızca sorunun açıkça sorduğu kısımdır; sorudaki tarih önce `effective_as_of` ile karşılaştırılır; hesaplanmış değer claim olmaz; kişisel bilgi ve alan adı metne yazılmaz; düzeltilmiş bir yanlış ön kabul cevaplanmış sayılır. Soru ID'sine veya belge adına özel kural yoktur. Modelin durumu claim'lerden sonra seçmesi için şemada `status` alanını sona almak da denendi; tutarsız `partial` azaldı ama gereksiz `partial` belirgin biçimde arttı, şema değişmedi.
+  - `answer-v4` ve `answer-v5` (2026-10-05): `answer-v3`'ün "metinde alan adı kullanma" listesinde `sources` ve `id` de vardı; tekrarlarda model kaynak ID'lerini daha az güvenilir kopyaladı. `answer-v4` listeyi `effective_scope` ve `effective_as_of` ile sınırlar. `answer-v3`'ün tarih kuralı yalnızca geçmiş ifadeleri sayıyordu: 30 Haziran'da "yarın açılacak talep" sorulunca bugünün kuralı verildi, "geçen hafta teslim almış" ise eski bir kuralı sormak sanıldı. `answer-v5` önce tarihin kuralın tarihi mi (bölümlerin söylediği olay, ör. talebin açıldığı tarih) yoksa başka bir olayın tarihi mi (ör. teslim) olduğuna baktırır ve gelecek ifadelerini de sayar. Aynı denemede D03'ün metni de metadata ile eşitlendi (K11). Bir de "tanımı sorudaki duruma uygula" kuralı denendi; hedeflediği sorulara yardım etmedi ve belgede yazmayan ters bir çıkarım ("tüm temsilcileri durdurmayan olay P1 değildir") doğurdu, eklenmedi.
+  - Kullanıcı mesajı tek bir JSON nesnesidir: etkin tarih, etkin kapsam, soru ve getirilen `TOP_K` bölüm (`id`, `heading_path`, `text`). `id` bölüm ID'si değil, bu isteğe özel bir etikettir (`S1`, `S2`, … getirilme sırasıyla); sunucu modelin atıflarını doğrulamadan sonra bölüm ID'lerine çevirir (K25). Eski sürümler zaten sürüm görünümünde elendiği için modele gitmez.
 - **Alternatif:** Soruyu ve bölümleri XML benzeri etiketlerle düz metne gömmek; prompt'u kodda sabit metin olarak tutmak; tüm top-k'yı göndermek.
 - **Neden:**
   - JSON string kaçışı sayesinde soru veya belge kendi alanını kapatıp talimat ya da başka bir kaynak gibi görünemez. Düz metin etiketlerinde `</soru>` yazan bir soru bunu yapabilirdi. Test, tırnak ve köşeli parantezle alanı kapatmaya çalışan bir soruyla bunu denetler.
   - Prompt dosyası incelenebilir ve sürümlenebilir; eval sonuçları hangi prompt'la alındığını kaydeder.
   - `TOP_K` (en fazla 8) ve 512 tokenlık bölüm/soru sınırı, modele giden bağlamı sınırlar. Getirilen ve modele verilen bölümler aynı küme olduğu için retrieval ölçümü modelin gördüğü kanıtı da ölçer; `TOP_K` artırmak gerekli bölümün gelmesini garanti etmez.
-- **Bedel:** Talimatların veri olarak ele alınması modelin uyumuna bağlıdır. Sahte generator testleri yalnızca talimatın doğru yere gittiğini gösterir, canlı modelin enjeksiyona dayanıklı olduğunu göstermez. `TOP_K` 4'ten büyük ayarlanırsa 5. ve sonraki bölümler `retrieved_chunk_ids`'te görünür ama modele gitmez.
+- **Bedel:** Talimatların veri olarak ele alınması modelin uyumuna bağlıdır. Sahte generator testleri yalnızca talimatın doğru yere gittiğini gösterir, canlı modelin enjeksiyona dayanıklı olduğunu göstermez.
 - **Ne zaman değişir:** Bölümler uzarsa veya 8 bölüm yetmezse bağlam bütçesi token sayısıyla ayrıca sınırlanır.
 
 ### K25 — Model çıktısı reddedilir, düzeltilmez; cevap sunucuda kurulur
 - **Seçim:**
-  - `validate_answer` model çıktısındaki her ihlali toplar ve 502 `invalid_generation_output` döner: boş veya kaynaksız claim, bu istekte verilmemiş kaynak ID'si (korpusta olsa bile), boş eksik konu, durumla çelişen claim/`missing_topics`/`reason_code`.
+  - `validate_answer` model çıktısındaki her ihlali toplar ve 502 `invalid_generation_output` döner: boş veya kaynaksız claim, bu istekte verilmemiş kaynak etiketi (bölüm ID'si, korpusta olsa ve getirilmiş olsa bile, kabul edilmez), boş eksik konu, durumla çelişen claim/`missing_topics`/`reason_code`.
   - Cevap metnini sunucu kurar: claim metinleri, `insufficient_evidence` için `reason_code`'un standart açıklaması ve eksik konular için standart bir cümle. Kaynak başlığı, sürüm, tarihler ve birebir alıntı korpustan eklenir.
   - Sağlayıcı hataları (bağlantı, HTTP hatası, zaman aşımı, ret, kesilmiş çıktı) ayrı kodlarla hata olur; hiçbiri "belgede bilgi yok" sayılmaz ve alıntı moduna düşülmez.
 - **Alternatif:** Geçersiz ID'leri atıp kalan claim'lerle devam etmek; modelden ayrıca serbest bir cevap metni almak; ikinci bir LLM ile anlamsal kontrol (LLM-as-judge).
 - **Neden:** Sessizce temizlenen bir cevap, doğrulanmamış bir modeli doğrulanmış gibi gösterir. Hata, eval'da "generation" veya "validation" kök nedeni olarak görünür. Atıfsız ikinci bir cevap alanı, doğrulamanın dışında kalan metin yayımlamak demektir.
-- **Bedel:** Kaynak ID doğrulaması anlamsal doğruluk garantisi değildir: verilen bir bölüme atıf yapan yanlış bir claim (ör. "60 gün") geçer. Bu bilinçli olarak bir testle görünür tutuldu. Katı kurallar, canlı modelin küçük biçim hatalarında da 502 doğurur.
-- **Ne zaman değişir:** Eval, belirli bir kuralın doğru cevapları sistematik olarak reddettiğini gösterirse kural veya prompt, ölçülerek değişir.
+- **Bedel:** Kaynak ID doğrulaması anlamsal doğruluk garantisi değildir: verilen bir bölüme atıf yapan yanlış bir claim (ör. "60 gün") geçer. Bu bilinçli olarak bir testle görünür tutuldu. Katı kurallar, canlı modelin küçük biçim hatalarında da 502 doğurur. Depo dışındaki tekrar denemelerinde iki tür ret görüldü: durumla çelişen alanlar (ör. eksik konu olmadan `partial`) ve verilen iki bölüm ID'sinin karışımı olan bir kaynak (`D06#dogruluk` ve D10 bölümleri verilmişken `D10#dogruluk`). İkincisi bir geliştirme sorusunda (DEV01) `answer-v3` ile 20 denemede 10 kez oldu. Modele bölüm ID'si yerine istek etiketi (`S1`…) verildikten sonra karışık kaynak hiç görülmedi (DEV01'in etiketlerle yerelde 20, API üzerinden 10 denemesinin hepsi cevaplandı); durum tutarsızlığı seyrek sürüyor (yerel bir denemede 112 çağrıda 2).
+- **Ne zaman değişir:** Eval, belirli bir kuralın doğru cevapları sistematik olarak reddettiğini gösterirse kural veya prompt, ölçülerek değişir. Durum tutarsızlığından gelen ret oranı kullanıcıyı etkileyecek düzeye çıkarsa ilk aday, aynı isteği bir kez daha sormaktır (kuralı gevşetmez, süreyi ve maliyeti artırır; ilk ret logda kalır).
 
 ### K26 — Yerel çalıştırma: Compose, iki imaj, dışarıya yalnızca API
 - **Seçim:**
@@ -406,6 +438,7 @@
   - Her kontrolün kendi paydası vardır. Uygulanmayan (`n/a`) ve cevap gelmediği için ölçülemeyen (`not_evaluable`) sorular ayrı sayılır. Tek bir başarı yüzdesi verilmez.
   - Bilgi kontrolleri, claim metinlerinde aranan birkaç düzenli ifadedir (ör. "30 geçiyor, 14 geçmiyor"). Sürüm beklentisi soruda açıkça yazılır (`expected_versions`).
   - Alıntı modunda yalnızca cevabı belgelerde olan sorular için `evidence_only` beklenir. Bu mod cevaplanabilirliğe karar vermediği için cevapsız sorularda durum ölçülmez.
+  - Her gerekli kalıp beklenen bölümün kendi metnine uymak, her yasak kalıp ona uymamak zorundadır; bir test bunu denetler. E05, E06 ve E08'de görülen "belgenin kendi ifadesini tanımayan kalıp" hatası böylece soru yazılırken yakalanır.
 - **Alternatif:** pytest + HTTP istemcisiyle ayrı bir eval projesi; servis fonksiyonlarını doğrudan çağırmak; metin eşitliği; ikinci bir LLM ile puanlama; tek başarı yüzdesi.
 - **Neden:**
   - .NET doğrulaması, request ID, hata eşleme ve timeout ölçümün içinde kalır.
@@ -416,7 +449,8 @@
   - Kalıp kontrolleri anlamsal değildir. "Beş iş günü" diye yazan doğru bir cevap `\b5 iş günü` kalıbını kaçırır; kalıp olumsuz bir cümlede geçerse yanlış alarm verir. Doğru bölüme atıf yapan yanlış bir cümle ancak kalıp tutarsa yakalanır.
   - Dış API yalnızca ilk k bölümü döndürür. İlk k'nın dışındaki sıra için servis logu veya `measure_retrieval.py` gerekir.
   - Koşu metadata'sı readiness'tan okunur. Sağlayıcı uç noktası (`OPENAI_BASE_URL`) readiness'ta olmadığı için koşu notunda ayrıca yazılır.
-- **Ne zaman değişir:** Soru ve kalıp sayısı bakım yükü olacak kadar büyürse insan etiketli bir değerlendirmeye geçilir.
+  - **18 soru artık bağımsız bir ölçüm değildir.** İlk koşudan sonra başarısız soruların kök nedeni arandı ve prompt ile korpus değişikliklerinin bir kısmı E05, E07, E12, E14, E15 ve E16'da görülen hatalardan çıktı. Değişiklikler önce 20 geliştirme sorusunda ve tekrar denemelerinde ölçüldü, ama son koşulardaki 18/18 yine de bu sorulara göre ayarlanmış bir sistemin regresyon sonucudur; yeni ifadelerde ne kadar doğru olduğunu söylemez.
+- **Ne zaman değişir:** Soru ve kalıp sayısı bakım yükü olacak kadar büyürse insan etiketli bir değerlendirmeye geçilir. Bağımsız bir doğruluk ölçümü gerekirse son değişiklikten sonra, sistemin cevaplarına bakılmadan yazılmış ve ilk koşudan önce commit edilmiş ayrı bir soru seti kullanılır; o setin sonucuna bakılarak sistem değişirse set kullanılmış sayılır. Runner başka bir soru dosyasını `--questions` ile alır ve koşu kimliğine dosyanın adını ekler.
 
 ## Değerlendirme bulguları
 
@@ -473,22 +507,51 @@ Başarısız otomatik kontroller (liste `checks.json`'dan):
 
 Beklenen değerler değiştirilmedi; yalnızca E15'in soru metni sürümlendi. Kök neden analizi ve insan incelemesi henüz yapılmadı; her sorunun `human_review` alanı `pending`.
 
+### Belge uzatma, `answer-v5` ve kaynak etiketleri sonrası koşular
+
+Değişiklikler: belgelerin uzatılması ve tetikleyicilerin kural bölümlerine taşınması (K11, ölçüm K17), prompt `answer-v3`→`answer-v5` (K24), modele bölüm ID'si yerine istek etiketi verilmesi (K25), E05/E06/E08 kalıplarının sürümlenmesi (§7, `revisions` alanı).
+
+Ara koşular commit `3b5a89f` (`answer-v3`, etiketsiz) üzerinde yapıldı; ikisi de 18/18 çıktı ama sonraki tekrar denemeleri bir geliştirme sorusunda yarı yarıya reddedilen çıktı ve bir tarih hatası gösterdi (K24, K25). İki koşunun bir oranı ölçmediğinin örneği olarak duruyorlar:
+- [`eval/results/20261004-234403-evidence_only/report.md`](../eval/results/20261004-234403-evidence_only/report.md)
+- [`eval/results/20261004-234404-generative/report.md`](../eval/results/20261004-234404-generative/report.md) (üretken #3), [`eval/results/20261004-234453-generative/report.md`](../eval/results/20261004-234453-generative/report.md) (üretken #4)
+
+Son koşular commit `c192230` üzerinde, temiz çalışma ağacıyla yapıldı; corpus fingerprint `24568519…`, 29 bölüm, prompt `answer-v5`:
+- [`eval/results/20261005-000524-evidence_only/report.md`](../eval/results/20261005-000524-evidence_only/report.md)
+- [`eval/results/20261005-000524-generative/report.md`](../eval/results/20261005-000524-generative/report.md) (üretken #5), [`eval/results/20261005-000606-generative/report.md`](../eval/results/20261005-000606-generative/report.md) (üretken #6)
+
+| Ölçüm (üretken) | İlk koşu | #1, #2 (`answer-v2`) | #3, #4 (`answer-v3`) | #5, #6 (`answer-v5`) |
+|---|---|---|---|---|
+| Beklenen durum | 14/18 | 17/18, 17/18 | 18/18, 18/18 | 18/18, 18/18 |
+| Beklenen bölüm ilk 4'te | 12/15 | 15/15, 15/15 | 15/15, 15/15 | 15/15, 15/15 |
+| Beklenen bölüm kaynak gösterildi | 12/15 | 15/15, 15/15 | 15/15, 15/15 | 15/15, 15/15 |
+| Cevaplanabilir soruda `insufficient_evidence` dönmedi | 14/15 | 15/15, 15/15 | 15/15, 15/15 | 15/15, 15/15 |
+| Cevapsız soruda claim üretilmedi | 2/3 | 3/3, 2/3 | 3/3, 3/3 | 3/3, 3/3 |
+| Gerekli kalıp | 12/15 | 15/15, 13/15 | 15/15, 15/15 | 15/15, 15/15 |
+| Yasak kalıp yok | 10/10 | 10/10, 10/10 | 10/10, 10/10 | 10/10, 10/10 |
+
+HTTP 18/18, sürüm kararı 6/6 ve kaynak geçerliliği 15/15 son iki koşuda da tam. #3–#6 sürümlenmiş kalıplarla kontrol edildi; #3 ve #4'ün cevapları eski kalıplarla kontrol edildiğinde de gerekli kalıp 15/15'tir. Son alıntı modu koşusu: HTTP 18/18, beklenen durum 15/15, beklenen bölüm ilk 4'te 15/15, sürüm kararı 6/6, kaynak geçerliliği 18/18.
+
+Son iki üretken koşu 18 sorunun 18'inde aynı iş durumunu, 17'sinde aynı kaynak kümesini verdi (farklı: E06). Üretim 1,4–4,8 sn; giriş 2.482–2.658 token (prompt uzadı), çıktı 56–278 token, reasoning tokenı en fazla 156. OpenRouter'ın listelediği fiyatla koşu başına yaklaşık 0,006 USD (tahmin, fatura değil).
+
+İki koşu bir başarı oranı değildir ve 18 soru ayar sırasında kullanıldığı için bağımsız bir ölçüm de değildir (K29). Son sürümle API üzerinden ayrıca yapılan tekrarlarda E05, E07, E12, E14, E16 ve E17 onar kez soruldu; 60 cevabın hepsi beklenen durumda ve otomatik kontrollerin hiçbiri başarısız değil. Aynı sorular `answer-v2` ile tekrarlandığında E14 20 denemede 9 kez `partial`, E05/E07/E08 zaman zaman eksik olgu veriyordu. Bu tekrarların ham çıktıları depoda değildir. Kök neden analizi ve insan incelemesi henüz yapılmadı; her sorunun `human_review` alanı `pending`.
+
 ## Bilinen sınırlar
 
 - **İlk indirme.** İlk başlangıç internet ister: model yaklaşık 470 MB, tokenizer yaklaşık 17 MB olarak `MODEL_CACHE_DIR` altına iner (Docker'da `rag-models` volume'ü). Önbellek dolduktan sonra sabit commit sayesinde model için ağ isteği yapılmaz. Dolu volume'lerle `--network none` başlatılan rag konteyneri hazır oldu. `huggingface_hub` yeni bir konteynerde bir kez (sonra en fazla günde bir) Hub'dan kendi istemci bilgisi için küçük bir liste ister. Bu, kütüphanenin hatasını yuttuğu ve 3 sn ile sınırladığı bir denemedir; ağsız başlatmayı bozmadı. Sıfırdan internetsiz kurulum desteklenmez.
 - **Embedding revision.** `EMBEDDING_REVISION` yalnızca tam commit hash'i kabul eder; boşsa sabitlenmiş commit kullanılır. `EMBEDDING_MODEL` revision'sız değiştirilirse aynı commit o repoda bulunmaz ve başlangıç hata verir. Başka bir revision için model testleri ve `measure_retrieval.py` yeniden çalıştırılmalıdır.
 - **Soru uzunluğu.** Sorgu da 512 token sınırına tabidir. Sınırı aşan soru kesilmez, 400 `invalid_request` olur. 2.000 karakterlik sınır bunu garanti etmez: normal Türkçe metinde 2.000 karakter yaklaşık 470 token tutarken 600 emoji sınırı aşıyor (gerçek tokenizer ile ölçüldü).
 - **Skorların taşınabilirliği.** Skorlar farklı CPU mimarilerinde son basamaklarda (yaklaşık 1e-6) farklı çıkabilir. Eşit skorda `chunk_id` sıralaması yalnızca birebir eşit skorlar için devreye girer.
-- **Küçük ölçüm.** Eşik ve bölümleme kararları 9 geliştirme sorusuna dayanır. 18 soruluk değerlendirme de aynı kurgu korpus için yazılmış küçük bir Türkçe regresyon setidir; genellenebilir bir doğruluk oranı vermez.
-- **Retrieval bu küçük sette tam, genelde garanti değil.** İlk koşuda 15 cevaplanabilir sorunun 3'ünde (E15, E16, E18) beklenen `sure` bölümü ilk 4'te yoktu; bölümleme değişikliğinden sonra iki modda da 15/15. Ölçüm 9 geliştirme ve 18 değerlendirme sorusuna dayanır; başka ifadelerde aynı sorun yeniden görülebilir (K11, K17).
-- **Canlı üretim deterministik değil.** Her üretken istek ücretli bir model çağrısıdır. Aynı commit ve ayarlarla iki üretken koşu 18 sorunun 2'sinde farklı iş durumu, 4'ünde farklı kaynak kümesi verdi; birkaç koşu bir başarı oranı vermez. Sonuçlara insan incelemesi henüz yapılmadı (`pending`). Eval'dan önceki deneme çağrılarından ikisi, OpenRouter'da etkin olan sıfır veri saklama (ZDR) kısıtı OpenAI uç noktasını dışladığı için 404 aldı; servis bunu doğru biçimde 503 `provider_unavailable` olarak döndü, "belgede yok" saymadı.
+- **Küçük ölçüm.** Eşik ve bölümleme kararları 20 geliştirme sorusuna dayanır. 18 soruluk değerlendirme de aynı kurgu korpus için yazılmış küçük bir Türkçe regresyon setidir; genellenebilir bir doğruluk oranı vermez.
+- **Retrieval bu küçük sette tam, genelde garanti değil.** İlk koşuda 15 cevaplanabilir sorunun 3'ünde (E15, E16, E18) beklenen `sure` bölümü ilk 4'te yoktu; bölümleme değişikliklerinden sonra değerlendirmede 15/15, geliştirme setinde 20/20 (K11, K17). Denemelerde beklenen bölümün ilk 4'ün dışında kaldığı ifade türleri: modelin tanımadığı eş anlamlılar ("nakliye masrafı" için `D03#kargo` 17. sırada; "kargo ücreti" ile 1.), yazım hatalı veya Türkçe karaktersiz yazılmış sorular, beş ayrı soruyu tek mesajda soran istekler (4 bölüm hepsine yetmez) ve uzun bir anlatımın sonuna eklenmiş soru. Bu durumlarda model getirilmeyen konuyu eksik konu olarak yazar.
+- **Canlı üretim deterministik değil.** Her üretken istek ücretli bir model çağrısıdır. `answer-v2` ile aynı commit ve ayarlarla iki üretken koşu 18 sorunun 2'sinde farklı iş durumu verdi; son iki koşu 18'inde aynı durumu verdi. Birkaç koşu bir başarı oranı vermez. Tekrarlarda kalan zayıflıklar: tanımla birebir aynı kelimeleri kullanmayan durumlarda temkinli cevap ("bütün ekip sisteme bağlanamıyor" sorusu P1 tanımı "tüm temsilcilerin çalışmasını durduran olay" ile 4 denemede 2 kez eşleştirilmedi) ve seyrek durum tutarsızlığı (K25). Sonuçlara insan incelemesi henüz yapılmadı (`pending`). Eval'dan önceki deneme çağrılarından ikisi, OpenRouter'da etkin olan sıfır veri saklama (ZDR) kısıtı OpenAI uç noktasını dışladığı için 404 aldı; servis bunu doğru biçimde 503 `provider_unavailable` olarak döndü, "belgede yok" saymadı.
 - **Model sürümü logda takma adla görünür.** OpenRouter yanıtta modeli `openai/gpt-6-luna` olarak bildiriyor, tarihli slug'ı değil. Hangi snapshot'ın kullanıldığı ancak OpenRouter'ın public models API'sinden (o gün `openai/gpt-6-luna-20260922`) ayrıca kaydedilebilir.
 - **Enjeksiyon dayanıklılığı kanıtlanmadı.** Testler, talimat içeren soru ve belgenin modele yalnızca veri olarak gittiğini ve sunucu doğrulamasının sürdüğünü gösterir; canlı modelin talimata uyup uymadığını göstermez.
 - **Kaynak doğrulaması anlamsal değildir** (K25). Doğru bölüme atıf yapan yanlış bir süre geçebilir; bunu yalnızca eval ve insan incelemesi yakalar.
 - **Retrieval kaçırması "belgede yok" gibi görünür.** İlk k'ya girmeyen bir bölümü model hiç görmez; o konuyu eksik konu olarak yazar. Sunucunun cümlesi "bu istekteki belgelerle yanıtlanamayan konular" der; yine de okuyan kişi retrieval hatasını gerçek bilgi yokluğundan ayıramaz. Teşhis için `retrieved_chunk_ids` ve logdaki skorlar gerekir.
 - **Belgeler arası anlamsal denetim yok.** Loader yalnızca yapıyı ve metadata tutarlılığını denetler. Belge gövdesinde yanlış yazılmış bir kuralı (ör. D04'te "30" yerine "40") veya metadata ile ilişkilendirilmemiş iki belge arasındaki çelişkiyi yakalamaz; gövdedeki tarih ifadeleri de metadata ile karşılaştırılmaz.
 - **Belgeyi yerinde düzenlemek sürümü değiştirmez.** Bir provada `D04#sure` metni yerinde değiştirildi: fingerprint değişti, indeks yeniden üretildi, yeni alıntı döndü; ama cevaptaki `version` yine `2.0` idi. Hangi metnin kullanıldığını o zaman yalnızca fingerprint (readiness, eval metadata) gösterir. Politika değişikliği yeni bir sürüm ve tarihlerle yapılmalıdır; yerinde düzenleme yazım düzeltmesi içindir.
-- **Tarihsel soru `as_of` ister.** Serbest metinden tarih okunmaz. Soru başka bir tarihi soruyor ama istek o tarihe ayarlı değilse modelin `as_of_required` ile bunu söylemesi beklenir; bu davranış prompt'a bağlıdır. Değerlendirme setinde böyle bir soru yok (E16 doğru `as_of` ile sorulur); teslim öncesi uçtan uca denemede `as_of` verilmeden "1 Haziran 2026'da iade süresi neydi?" sorusu `as_of_required` döndü. Bu tek gözlemdir, oran değildir.
+- **Tarih hesabı yapılmaz.** Model, bölümde yazmayan bir değeri hesaplamaz (K24): "geçen hafta teslim aldı, yetişir mi?" sorusunda 30 takvim günü kuralını verir, kesin tarih verilmediği için sonucu eksik konu olarak bırakır. Resmî tatil ve gün sayma kuralı (ilk gün dâhil mi) belgelerde tanımlı değildir.
+- **Tarihsel soru `as_of` ister.** Serbest metinden tarih okunmaz. Soru başka bir tarihi soruyor ama istek o tarihe ayarlı değilse modelin `as_of_required` ile bunu söylemesi beklenir; bu davranış prompt'a bağlıdır. `answer-v5` gelecek ifadelerini ("yarın") da sayar ve teslim gibi başka bir olayın tarihini kuralın tarihi saymaz. Değerlendirme setinde böyle bir soru yok (E16 doğru `as_of` ile sorulur); teslim öncesi uçtan uca denemede `as_of` verilmeden "1 Haziran 2026'da iade süresi neydi?" sorusu `as_of_required` döndü. Bu tek gözlemdir, oran değildir.
 - **Üretim için eksik olanlar.** Kimlik doğrulama ve belge bazlı yetkilendirme yoktur; kapsam filtresi yetkilendirme değildir. Tenant izolasyonu, TLS ve ağ kontrolleri, saklama ve silme politikası, sağlayıcı ve veri aktarımı değerlendirmesi, güvenlik incelemesi ve yük/ölçek testi yapılmadı.
 - **ASCII olmayan HTTP başlığı.** Kestrel, ASCII olmayan bir başlık değerini (ör. `X-Request-ID: accept.çok`) uygulama koduna ulaşmadan gövdesiz 400 ile reddeder; bu durumda hata sözleşmesi ve request ID dönmez (temiz kopya denetiminde görüldü).
 - **rag durduktan sonraki ilk çağrı.** Temiz kopya provasında rag konteyneri korpus hatasıyla durduktan sonra ilk `/health/ready` çağrısı, `rag` adının çözümlenmesi 3 sn'yi aştığı için 504 `upstream_timeout` döndü; sonraki çağrılar hemen 503 `upstream_unavailable` döndü. "Durdu" ile "yavaş" ayrımı `docker compose ps` ve loglarla yapılır.

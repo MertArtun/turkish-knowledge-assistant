@@ -41,8 +41,9 @@ DEFAULT_API = "http://127.0.0.1:8080"
 # API's 504 rather than as a client-side timeout.
 REQUEST_TIMEOUT_SECONDS = 60
 READINESS_TIMEOUT_SECONDS = 10
-# The files that decide a run's result. "dirty" means one of them differs from the commit.
-RUN_INPUTS = ("src", "data", "compose.yaml", "eval/questions.jsonl", "eval/run_eval.py")
+# The files that decide a run's result, besides the question file used. "dirty" means one of
+# them differs from the commit.
+RUN_INPUTS = ("src", "data", "compose.yaml", "eval/run_eval.py")
 
 CHECK_LABELS = {
     "http": "HTTP 200 ve istekle aynı request_id",
@@ -63,10 +64,6 @@ CHECK_LABELS = {
     "forbidden_facts": "Yasak bilgi kalıpları claim'lerde yok (sınırlı; anlamsal değil)",
 }
 CHECK_NAMES = tuple(CHECK_LABELS)
-AS_OF_NOTE = (
-    "İsteklerdeki as_of değerlendirilen iş tarihidir (E16 dışında 2026-10-04, E16'da "
-    "2026-06-01); gerçek çalıştırma zamanıyla aynı kavram değildir."
-)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -88,9 +85,9 @@ def main(argv: list[str] | None = None) -> int:
         print("blocked: generation is not configured; no model call was made", file=sys.stderr)
         return 2
 
-    git = git_state()
+    git = git_state(args.questions)
     started = datetime.now().astimezone()
-    run_id = f"{started:%Y%m%d-%H%M%S}-{args.mode}"
+    run_id = run_id_for(started, args.mode, args.questions)
     exchanges = []
     for question in questions:
         request_id = f"eval.{run_id}.{question['id']}"
@@ -117,6 +114,7 @@ def main(argv: list[str] | None = None) -> int:
         "api": api,
         "request_timeout_seconds": REQUEST_TIMEOUT_SECONDS,
         "question_count": len(questions),
+        "questions_file": _repo_path(args.questions),
         # Identifies the question set: a reworded question or rubric changes this hash.
         "questions_sha256": hashlib.sha256(args.questions.read_bytes()).hexdigest(),
         "git": git,
@@ -124,7 +122,7 @@ def main(argv: list[str] | None = None) -> int:
         # and threshold of the running stack, read before the first question.
         "readiness": ready["run_metadata"],
         "readiness_unchanged": readiness_after["response"] == readiness["response"],
-        "as_of_note": AS_OF_NOTE,
+        "as_of_note": as_of_note(questions),
     }
     checked = [
         check_question(question, exchange, args.mode, sections)
@@ -155,6 +153,36 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{name}: {counts['passed']}/{counts['applicable']}")
     print(f"written: {out_dir}")
     return 0
+
+
+def run_id_for(started: datetime, mode: str, questions_path: Path) -> str:
+    """Runs of another question file carry its name, so they can never be read as runs of the
+    18-question evaluation."""
+    run_id = f"{started:%Y%m%d-%H%M%S}-{mode}"
+    if questions_path.resolve() != DEFAULT_QUESTIONS.resolve():
+        run_id += "-" + questions_path.stem.removesuffix("_questions")
+    return run_id
+
+
+def as_of_note(questions: list[dict]) -> str:
+    by_date: dict[str, list[str]] = {}
+    for question in questions:
+        by_date.setdefault(question["request"].get("as_of") or "bugün", []).append(question["id"])
+    # The usual date with a count, the exceptions with their question IDs.
+    usual = max(by_date, key=lambda as_of: len(by_date[as_of]))
+    dates = ", ".join(
+        f"{as_of} ({len(ids)} soru)" if as_of == usual else f"{as_of} ({', '.join(ids)})"
+        for as_of, ids in by_date.items()
+    )
+    return (
+        f"İsteklerdeki as_of değerlendirilen iş tarihidir ({dates}); gerçek çalıştırma zamanıyla "
+        "aynı kavram değildir."
+    )
+
+
+def _repo_path(path: Path) -> str:
+    resolved = path.resolve()
+    return str(resolved.relative_to(REPO_ROOT)) if resolved.is_relative_to(REPO_ROOT) else str(path)
 
 
 def load_questions(path: Path) -> list[dict]:
@@ -471,19 +499,27 @@ def summarize(checked: list[dict]) -> dict:
     return summary
 
 
-def git_state() -> dict:
+def git_state(questions_path: Path) -> dict:
     def git(*args: str) -> str:
         result = subprocess.run(
             ["git", *args], cwd=REPO_ROOT, capture_output=True, text=True, check=True
         )
-        return result.stdout.strip()
+        return result.stdout
 
-    changed = git("status", "--porcelain", "--", *RUN_INPUTS).splitlines()
+    # A question file outside the repository cannot be dirty-checked; its SHA-256 is in metadata.
+    inside = questions_path.resolve().is_relative_to(REPO_ROOT)
+    inputs = (*RUN_INPUTS, _repo_path(questions_path)) if inside else RUN_INPUTS
+    changed = dirty_paths(git("status", "--porcelain", "--", *inputs))
     return {
-        "commit": git("rev-parse", "HEAD"),
+        "commit": git("rev-parse", "HEAD").strip(),
         "dirty": bool(changed),
-        "dirty_paths": [line[3:] for line in changed],
+        "dirty_paths": changed,
     }
+
+
+def dirty_paths(porcelain: str) -> list[str]:
+    # Each line is "XY path"; X may be a space, so the output must not be stripped as a whole.
+    return [line[3:] for line in porcelain.splitlines() if line.strip()]
 
 
 # --- Report ---------------------------------------------------------------------------------
@@ -518,7 +554,8 @@ def render_report(
         "sn timeout |",
         f"| Commit | `{git['commit']}`; koşu girdileri commit'ten farklı (dirty): "
         f"{'evet ' + ', '.join(git['dirty_paths']) if git['dirty'] else 'hayır'} |",
-        f"| Soru sayısı | {metadata['question_count']} |",
+        f"| Soru dosyası | `{metadata['questions_file']}`, {metadata['question_count']} soru, "
+        f"SHA-256 `{metadata['questions_sha256']}` |",
         f"| Corpus fingerprint | `{ready['corpus_fingerprint']}` |",
         f"| Embedding | `{ready['embedding_model']}@{ready['embedding_revision']}` |",
         f"| LLM modeli (yapılandırılan) | `{ready['llm_model']}`; "
