@@ -115,7 +115,7 @@ Uygulama: `src/rag_service/app/versioning.py`.
 3. Sıralama skora göre azalan; eşit skorda `chunk_id` artan.
 4. `MIN_RETRIEVAL_SCORE` boşsa eşik yoktur; doluysa altındaki adaylar düşer. Ardından ilk `TOP_K` (varsayılan 4) döner.
 
-Skor bir güven değeri değildir ve cevapta yer almaz; yalnızca log ve ölçüm içindir. Eşiğin neden kapalı olduğu ve ölçüm `docs/decisions.md` K17'dedir.
+Skor bir güven değeri değildir ve cevapta yer almaz; yalnızca log ve ölçüm içindir. Eşiğin neden kapalı olduğu `docs/decisions.md`'de (karar C ve "Arama" notu); ölçüm `src/rag_service/measure_retrieval.py` ile tekrarlanır.
 
 Dışlama nedenleri (`excluded[].reason`). Kontroller kural sırasıyla yapılır ve **ilk** başarısız kontrol nedeni belirler:
 
@@ -283,7 +283,7 @@ Uygulama: `eval/run_eval.py` (yalnızca Python standart kütüphanesi; servis ko
 
 Ayrıca 20 geliştirme sorusu `eval/dev_questions.jsonl` içindedir (`id`, `category`, `request`, `expected_source_ids`); her belgenin zorunlu bölümü en az bir soruyla ölçülür. Eşik ve bölümleme kararları önce onlarda denenir (`src/rag_service/measure_retrieval.py`).
 
-E01–E18 ilk koşudan sonra hata ayıklamada kullanıldı; prompt ve korpus değişikliklerinin bir kısmı bu sorularda görülen hatalardan çıktı. Sonuçları bu yüzden bağımsız bir doğruluk ölçümü değil, regresyon kontrolüdür (`docs/decisions.md`, K29). Değerlendirme setinde her gerekli kalıp beklenen bölümün kendi metnine uyar, her yasak kalıp uymaz (test edilir).
+E01–E18 ilk koşudan sonra hata ayıklamada kullanıldı; prompt ve korpus değişikliklerinin bir kısmı bu sorularda görülen hatalardan çıktı. Sonuçları bu yüzden bağımsız bir doğruluk ölçümü değil, regresyon kontrolüdür (`docs/decisions.md`, "Değerlendirme" notu). Değerlendirme setinde her gerekli kalıp beklenen bölümün kendi metnine uyar, her yasak kalıp uymaz (test edilir).
 
 **Holdout seti.** Bağımsız ölçüm `eval/holdout_questions.jsonl`'dir (H01–H26, aynı biçim). Son prompt ve korpus değişikliğinden sonra yazıldı; yazımında prompt, sistemin cevapları ve önceki koşular kullanılmadı; beklentiler iki ayrı gözden geçirmeden geçti ve set ilk koşudan önce commit edildi. Kurallar: holdout sonucuna bakılarak prompt, korpus veya beklenen değer değiştirilmez; değiştirilirse set kullanılmış sayılır, soruları regresyon setine geçer ve yeni bir holdout yazılır. Koşu: `python3 eval/run_eval.py --mode generative --questions eval/holdout_questions.jsonl` (koşu kimliği `-holdout` ile biter). Aynı kalıp testleri bu set için de geçerlidir.
 
