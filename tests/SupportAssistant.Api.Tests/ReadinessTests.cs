@@ -10,7 +10,7 @@ public class ReadinessTests
     public async Task ReadyRagService_Returns200WithTheTypedReadinessBody_UsingOnlyTheReadinessCall()
     {
         await using var api = new ApiUnderTest();
-        var ready = ReadyBody();
+        var ready = Fixture.Read("readiness-ready.json");
         api.Rag.RepliesWith(HttpStatusCode.OK, ready);
 
         var response = await api.Client.GetAsync("/health/ready");
@@ -20,19 +20,6 @@ public class ReadinessTests
         // Readiness never reaches /internal/ask, so it can never trigger an LLM call.
         var sent = Assert.Single(api.Rag.Requests);
         Assert.Equal(("GET", "/health/ready"), (sent.Method, sent.Path));
-    }
-
-    [Fact]
-    public async Task NotReadyRagService_Returns503WithTheSameBodyShape()
-    {
-        await using var api = new ApiUnderTest();
-        var notReady = Fixture.Read("readiness-not-ready.json");
-        api.Rag.RepliesWith(HttpStatusCode.ServiceUnavailable, notReady);
-
-        var response = await api.Client.GetAsync("/health/ready");
-
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
-        Fixture.AssertSameJson(notReady, await response.Content.ReadAsStringAsync());
     }
 
     [Fact]
@@ -47,10 +34,20 @@ public class ReadinessTests
         Assert.Equal("upstream_unavailable", await ReadErrorCodeAsync(response));
     }
 
+    public static TheoryData<int, string> InvalidReadinessReplies => new()
+    {
+        { 200, "{}" },
+        { 500, "<html>Internal Server Error</html>" },
+        { 200, """{"status": "ready"}""" },
+        // The RAG service loads everything before it listens, so it has no "not ready" body.
+        { 503, ReadinessWith(body => body["status"] = "not_ready") },
+        { 200, ReadinessWith(body => body["run_metadata"]!["corpus_fingerprint"] = null) },
+        // A failure status contradicts a "ready" body; the API must not turn it into a 200.
+        { 503, Fixture.Read("readiness-ready.json") },
+    };
+
     [Theory]
-    [InlineData(200, "{}")]
-    [InlineData(500, "<html>Internal Server Error</html>")]
-    [InlineData(200, """{"status": "ready", "checks": {"corpus_index": true, "embedding_model": true}}""")]
+    [MemberData(nameof(InvalidReadinessReplies))]
     public async Task ReplyOutsideTheContract_Returns502UpstreamInvalidResponse(int ragStatus, string ragBody)
     {
         await using var api = new ApiUnderTest();
@@ -76,16 +73,10 @@ public class ReadinessTests
         Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(10), $"took {stopwatch.Elapsed}");
     }
 
-    private static string ReadyBody()
+    private static string ReadinessWith(Action<JsonNode> change)
     {
-        var body = JsonNode.Parse(Fixture.Read("readiness-not-ready.json"))!;
-        body["status"] = "ready";
-        body["checks"] = new JsonObject { ["corpus_index"] = true, ["embedding_model"] = true };
-        body["run_metadata"]!["embedding_revision"] = "test-revision";
-        body["run_metadata"]!["corpus_fingerprint"] = "test-fingerprint";
-        body["run_metadata"]!["prompt_version"] = "test-prompt-version";
-        body["run_metadata"]!["prompt_hash"] = "test-prompt-hash";
-        body["run_metadata"]!["min_retrieval_score"] = 0.5;
+        var body = JsonNode.Parse(Fixture.Read("readiness-ready.json"))!;
+        change(body);
         return body.ToJsonString();
     }
 

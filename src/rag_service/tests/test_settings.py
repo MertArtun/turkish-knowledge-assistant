@@ -87,6 +87,8 @@ def test_unknown_app_mode_is_rejected():
     [
         ("TOP_K", "0"),
         ("TOP_K", "100"),
+        # TOP_K is also the number of sections the model reads; 8 bounds that context.
+        ("TOP_K", "9"),
         ("TOP_K", "four"),
         ("MIN_RETRIEVAL_SCORE", "1.5"),
         ("LLM_TIMEOUT_SECONDS", "0"),

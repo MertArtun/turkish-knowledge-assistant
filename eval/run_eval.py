@@ -8,9 +8,9 @@ Results go to eval/results/<run_id>/:
   checks.json   run metadata, each question's automatic checks and their counts
   report.md     expected vs actual, for review
 
-The automatic checks compare statuses, section IDs, version decisions and quotes, plus a few
-regular expressions over the claim texts. They do not measure semantic correctness; each
-question's human review starts as "pending".
+The automatic checks compare statuses, section IDs, version decisions and quotes (against the cited
+section of the corpus), plus a few regular expressions over the claim texts. They do not measure
+semantic correctness; each question's human review starts as "pending".
 
 Standard library only, so it needs no environment of its own; the service never imports it.
 Run from the repository root while the stack is up:
@@ -19,6 +19,7 @@ Run from the repository root while the stack is up:
 """
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -50,11 +51,14 @@ CHECK_LABELS = {
     "citation": "Beklenen bölümlerin tamamı kaynak gösterildi (`sources`)",
     "version": "Doğru sürüm kararı (`version_decisions`)",
     "source_validity": (
-        "Kaynak/aday kimliği geçerli: getirilen bölüm, seçili sürüm, birebir alıntı, "
-        "claim atıfları = `sources`"
+        "Kaynak/aday geçerli: bölüm korpusta var, alıntı o bölümün birebir metni, belge/sürüm "
+        "bilgisi bölüm kaydıyla aynı, getirilen bölüm, seçili sürüm, claim atıfları = `sources` "
+        "(kaynak/aday yoksa uygulanmaz)"
     ),
-    "no_unnecessary_refusal": "Cevaplanabilir soruda gereksiz ret yok",
-    "no_wrong_answer": "Cevapsız soruda iddia (yanlış cevap) yok",
+    "no_unnecessary_refusal": "Cevaplanabilir soruda `insufficient_evidence` dönmedi (üretken mod)",
+    "no_claims_when_unanswerable": (
+        "Cevapsız soruda claim üretilmedi (üretken mod; claim'in anlamsal yanlışlığını ölçmez)"
+    ),
     "required_facts": "Gerekli bilgi kalıpları claim'lerde var (sınırlı; anlamsal değil)",
     "forbidden_facts": "Yasak bilgi kalıpları claim'lerde yok (sınırlı; anlamsal değil)",
 }
@@ -73,7 +77,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     questions = load_questions(args.questions)
-    document_texts = load_document_texts(KNOWLEDGE_DIR)
+    sections = load_sections(KNOWLEDGE_DIR)
     api = args.api.rstrip("/")
     readiness = get_json(f"{api}/health/ready", READINESS_TIMEOUT_SECONDS)
     ready = readiness["response"] or {}
@@ -113,6 +117,8 @@ def main(argv: list[str] | None = None) -> int:
         "api": api,
         "request_timeout_seconds": REQUEST_TIMEOUT_SECONDS,
         "question_count": len(questions),
+        # Identifies the question set: a reworded question or rubric changes this hash.
+        "questions_sha256": hashlib.sha256(args.questions.read_bytes()).hexdigest(),
         "git": git,
         # Corpus fingerprint, embedding model/revision, LLM model, prompt version/hash, top_k
         # and threshold of the running stack, read before the first question.
@@ -121,7 +127,7 @@ def main(argv: list[str] | None = None) -> int:
         "as_of_note": AS_OF_NOTE,
     }
     checked = [
-        check_question(question, exchange, args.mode, document_texts)
+        check_question(question, exchange, args.mode, sections)
         for question, exchange in zip(questions, exchanges, strict=True)
     ]
     multi_source = [
@@ -156,13 +162,50 @@ def load_questions(path: Path) -> list[dict]:
     return [json.loads(line) for line in lines if line.strip()]
 
 
-def load_document_texts(knowledge_dir: Path) -> dict[str, str]:
-    """Raw Markdown of each corpus file by doc_id; quotes are checked against it verbatim."""
-    texts = {}
+FRONTMATTER_FIELD = re.compile(r"^(doc_id|title|version|valid_from|valid_to): *(.*)$")
+SECTION_HEADING = re.compile(r"^## (?P<heading>\S.*?) \{#(?P<section_id>[^{}]+)\}$")
+
+
+def load_sections(knowledge_dir: Path) -> dict[str, dict]:
+    """Every corpus section by chunk_id, read independently of the service's loader."""
+    sections = {}
     for path in sorted(knowledge_dir.glob("*.md")):
-        text = path.read_text(encoding="utf-8")
-        texts[re.search(r"^doc_id: (\S+)$", text, re.MULTILINE).group(1)] = text
-    return texts
+        sections.update(parse_document(path.read_text(encoding="utf-8")))
+    return sections
+
+
+def parse_document(text: str) -> dict[str, dict]:
+    """One corpus file in the supported format (front matter, then "## Heading {#id}" sections)
+    as source records shaped like the API's source objects: the quote is the section's text
+    between its heading and the next one, without surrounding whitespace."""
+    _, front, body = text.split("---\n", 2)
+    meta = {}
+    for line in front.splitlines():
+        match = FRONTMATTER_FIELD.match(line)
+        if match:
+            value = match.group(2).strip().strip('"')
+            meta[match.group(1)] = None if value == "null" else value
+    sections, current = {}, None
+    for line in body.splitlines():
+        heading = SECTION_HEADING.match(line)
+        if heading:
+            current = {
+                "chunk_id": f"{meta['doc_id']}#{heading['section_id']}",
+                "doc_id": meta["doc_id"],
+                "document_title": meta["title"],
+                "version": meta["version"],
+                "section_id": heading["section_id"],
+                "heading_path": [meta["title"], heading["heading"]],
+                "quote": [],
+                "valid_from": meta["valid_from"],
+                "valid_to": meta["valid_to"],
+            }
+            sections[current["chunk_id"]] = current
+        elif current is not None:
+            current["quote"].append(line)
+    for record in sections.values():
+        record["quote"] = "\n".join(record["quote"]).strip()
+    return sections
 
 
 # --- HTTP -----------------------------------------------------------------------------------
@@ -230,7 +273,7 @@ def expected_status(question: dict, mode: str) -> str | None:
     return "evidence_only" if question["expected_source_ids"] else None
 
 
-def check_question(question: dict, exchange: dict, mode: str, document_texts: dict) -> dict:
+def check_question(question: dict, exchange: dict, mode: str, sections: dict) -> dict:
     """Automatic checks of one question: "pass", "fail", "n/a" (does not apply to this question
     in this mode) or "not_evaluable" (applies, but the API returned no usable answer)."""
     body = exchange["response"]
@@ -241,11 +284,12 @@ def check_question(question: dict, exchange: dict, mode: str, document_texts: di
         and body.get("request_id") == exchange["request_id"]
     )
     applicable = _applicable_checks(question, mode)
-    problems = _find_problems(question, body, mode, document_texts) if usable else {}
+    problems = _find_problems(question, body, mode, sections) if usable else {}
+    cites_something = usable and bool(body["sources"] or body["evidence"])
 
     checks = {"http": "pass" if usable else "fail"}
     for name in CHECK_NAMES[1:]:
-        if not applicable[name]:
+        if not applicable[name] or (name == "source_validity" and usable and not cites_something):
             checks[name] = "n/a"
         elif not usable:
             checks[name] = "not_evaluable"
@@ -281,8 +325,11 @@ def _applicable_checks(question: dict, mode: str) -> dict[str, bool]:
         "citation": generative and bool(expected_ids),
         "version": bool(question["expected_versions"]),
         "source_validity": True,
-        "no_unnecessary_refusal": question["expected_status"] in ("answered", "partial"),
-        "no_wrong_answer": question["expected_status"] == "insufficient_evidence",
+        # Answerability is decided only in generative mode; evidence-only never refuses or claims.
+        "no_unnecessary_refusal": generative
+        and question["expected_status"] in ("answered", "partial"),
+        "no_claims_when_unanswerable": generative
+        and question["expected_status"] == "insufficient_evidence",
         "required_facts": generative and _has_pattern(question["required_facts"]),
         "forbidden_facts": generative and _has_pattern(question["forbidden_facts"]),
     }
@@ -292,7 +339,7 @@ def _has_pattern(facts: list[dict]) -> bool:
     return any(fact["pattern"] for fact in facts)
 
 
-def _find_problems(question: dict, body: dict, mode: str, document_texts: dict) -> dict:
+def _find_problems(question: dict, body: dict, mode: str, sections: dict) -> dict:
     expected_ids = question["expected_source_ids"]
     wanted_status = expected_status(question, mode)
     cited = {source["chunk_id"] for source in body["sources"]}
@@ -314,11 +361,13 @@ def _find_problems(question: dict, body: dict, mode: str, document_texts: dict) 
             f"{chunk_id} kaynak gösterilmedi" for chunk_id in expected_ids if chunk_id not in cited
         ],
         "version": _version_problems(question["expected_versions"], body["version_decisions"]),
-        "source_validity": _source_problems(body, document_texts),
+        "source_validity": _source_problems(body, sections),
         "no_unnecessary_refusal": (
             ["insufficient_evidence döndü"] if body["status"] == "insufficient_evidence" else []
         ),
-        "no_wrong_answer": [f"{len(body['claims'])} iddia üretildi"] if body["claims"] else [],
+        "no_claims_when_unanswerable": (
+            [f"{len(body['claims'])} claim üretildi"] if body["claims"] else []
+        ),
         "required_facts": [
             f"bulunamadı: {fact['fact']}"
             for fact in question["required_facts"]
@@ -353,20 +402,35 @@ def _version_problems(expected_versions: dict, decisions: list[dict]) -> list[st
     return problems
 
 
-def _source_problems(body: dict, document_texts: dict) -> list[str]:
+SOURCE_FIELDS = ("doc_id", "document_title", "version", "section_id", "heading_path")
+SOURCE_DATES = ("valid_from", "valid_to")
+
+
+def _source_problems(body: dict, sections: dict) -> list[str]:
     retrieved = set(body["retrieved_chunk_ids"])
     selected = {d["selected"]["doc_id"] for d in body["version_decisions"] if d["selected"]}
     problems = []
     for item in body["sources"] + body["evidence"]:
         chunk_id = item["chunk_id"]
+        record = sections.get(chunk_id)
+        if record is None:
+            problems.append(f"{chunk_id} korpusta böyle bir bölüm yok")
+        else:
+            problems += [
+                f"{chunk_id} {field} bölüm kaydıyla aynı değil"
+                for field in SOURCE_FIELDS + SOURCE_DATES
+                if item.get(field) != record[field]
+            ]
+            if item["quote"] != record["quote"]:
+                problems.append(f"{chunk_id} alıntısı o bölümün birebir metni değil")
+        if not item["quote"].strip():
+            problems.append(f"{chunk_id} alıntısı boş")
         if chunk_id not in retrieved:
             problems.append(f"{chunk_id} getirilen bölümler arasında değil")
         if chunk_id != f"{item['doc_id']}#{item['section_id']}":
             problems.append(f"{chunk_id} doc_id/section_id ile uyuşmuyor")
         if item["doc_id"] not in selected:
             problems.append(f"{chunk_id} seçili sürümden değil")
-        if item["quote"] not in document_texts.get(item["doc_id"], ""):
-            problems.append(f"{chunk_id} alıntısı belge metninde birebir yok")
     cited = {chunk_id for claim in body["claims"] for chunk_id in claim["source_chunk_ids"]}
     if cited != {source["chunk_id"] for source in body["sources"]}:
         problems.append("claim atıfları ile sources aynı değil")
@@ -522,6 +586,11 @@ def _question_details(question: dict, exchange: dict, item: dict) -> list[str]:
         f"### {item['id']} · {item['category']}",
         "",
         f"- Soru: {request['question']}",
+        *(
+            [f"- Soru sürümü: {question['revision']} (önceki metinler `revisions` alanında)"]
+            if "revision" in question
+            else []
+        ),
         f"- İstek: as_of `{request['as_of']}`, kapsam "
         f"`{'/'.join(request['scope'].values())}`, mod `{request['mode']}`",
         f"- Beklenen (üretken mod): `{question['expected_status']}`; bölümler "

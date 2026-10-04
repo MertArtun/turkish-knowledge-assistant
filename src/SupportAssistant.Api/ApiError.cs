@@ -32,11 +32,6 @@ public sealed record ApiError(string Code, int StatusCode, string Message)
         StatusCodes.Status413PayloadTooLarge,
         "İstek gövdesi 16 KiB sınırını aşıyor.");
 
-    public static readonly ApiError ServiceNotReady = new(
-        "service_not_ready",
-        StatusCodes.Status503ServiceUnavailable,
-        "Asistan henüz hazır değil; belge indeksi veya embedding modeli yükleniyor. Biraz sonra tekrar deneyin.");
-
     public static readonly ApiError GenerationNotConfigured = new(
         "generation_not_configured",
         StatusCodes.Status503ServiceUnavailable,
@@ -85,7 +80,6 @@ public sealed record ApiError(string Code, int StatusCode, string Message)
     public static ApiError FromRagServiceCode(string code) => code switch
     {
         "invalid_request" => RejectedByRagService,
-        "service_not_ready" => ServiceNotReady,
         "generation_not_configured" => GenerationNotConfigured,
         "provider_unavailable" => ProviderUnavailable,
         "generation_timeout" => GenerationTimeout,

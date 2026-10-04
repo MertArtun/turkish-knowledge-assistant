@@ -46,10 +46,6 @@ from app.versioning import Clock, effective_as_of, effective_scope, select_versi
 
 logger = logging.getLogger(__name__)
 
-# The most sections the model sees, whatever TOP_K is. Each section is at most 512 embedding-model
-# tokens (checked when the index loads) and so is the question, which bounds the model's input.
-GENERATION_SECTION_LIMIT = 4
-
 # Standard explanations written by the server, never by a model. They state why nothing can be
 # answered from the documents; they contain no policy values.
 NO_DOCUMENTS_FOR_SCOPE = (
@@ -180,8 +176,9 @@ class Assistant:
         embed_ms: float,
         search_ms: float,
     ) -> AskResponse:
-        # Only these sections reach the model: current versions, in this scope, at most four.
-        provided = {r.chunk.chunk_id: r.chunk for r in results[:GENERATION_SECTION_LIMIT]}
+        # Exactly the retrieved sections reach the model: current versions, in this scope, TOP_K
+        # of them. One budget, so measuring retrieval also measures what the model was given.
+        provided = {r.chunk.chunk_id: r.chunk for r in results}
         user_input = render_input(question, as_of, scope, list(provided.values()))
         prompt_id = f"{self.prompt.version}@{self.prompt.sha256[:12]}"
         generation_started = time.perf_counter()

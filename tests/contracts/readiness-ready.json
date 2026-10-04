@@ -1,0 +1,15 @@
+{
+  "status": "ready",
+  "run_metadata": {
+    "app_mode": "evidence_only",
+    "generation_configured": false,
+    "llm_model": "openai/gpt-6-luna",
+    "embedding_model": "intfloat/multilingual-e5-small",
+    "embedding_revision": "614241f622f53c4eeff9890bdc4f31cfecc418b3",
+    "corpus_fingerprint": "fabd5f021008b2ddecfa6c3cced27735cd8d65391453fabc8f77a61ac5bf5e2f",
+    "prompt_version": "answer-v1",
+    "prompt_hash": "e24d9ade7581b15623beca2eac3ca38c17b787aa41fd76921e266762525ea6b0",
+    "top_k": 4,
+    "min_retrieval_score": null
+  }
+}

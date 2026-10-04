@@ -19,7 +19,7 @@ FIXTURE_MODELS: dict[str, type[BaseModel]] = {
     "ask-response-insufficient-evidence.json": AskResponse,
     "ask-response-evidence-only.json": AskResponse,
     "error-response.json": ErrorResponse,
-    "readiness-not-ready.json": ReadinessResponse,
+    "readiness-ready.json": ReadinessResponse,
 }
 RESPONSE_FIXTURES = [name for name, model in FIXTURE_MODELS.items() if model is AskResponse]
 
@@ -121,6 +121,21 @@ def test_claim_without_source_ids_is_rejected():
 
     with pytest.raises(ValidationError):
         AskResponse.model_validate(raw)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("status", "not_ready"), ("corpus_fingerprint", None), ("prompt_hash", None)],
+)
+def test_readiness_only_describes_a_fully_loaded_service(field, value):
+    # The service loads the corpus, model and index before it accepts connections, so it never
+    # reports "not ready" or a missing fingerprint; while it loads, its port is simply closed.
+    raw = copy.deepcopy(load_fixture("readiness-ready.json"))
+    target = raw if field == "status" else raw["run_metadata"]
+    target[field] = value
+
+    with pytest.raises(ValidationError):
+        ReadinessResponse.model_validate(raw)
 
 
 def test_unknown_error_code_is_rejected():

@@ -363,7 +363,7 @@ def test_model_insufficient_evidence_gets_the_server_explanation_and_keeps_the_s
     assert response.version_decisions
 
 
-def test_model_sees_only_the_question_scope_date_and_at_most_four_current_sections():
+def test_model_sees_only_the_question_scope_date_and_every_retrieved_current_section():
     scores = {
         "D03#sure": 0.99,  # expired on 2026-10-04: its text must never reach the model
         "D03#kargo": 0.98,
@@ -387,7 +387,8 @@ def test_model_sees_only_the_question_scope_date_and_at_most_four_current_sectio
     assert set(data) == {"effective_as_of", "effective_scope", "question", "sources"}
     assert data["question"] == "İade kargosunu kim ödüyor?"
     assert (data["effective_as_of"], data["effective_scope"]["country"]) == ("2026-10-04", "TR")
-    assert response.retrieved_chunk_ids[:4] == [s["id"] for s in data["sources"]]
+    # One context budget: the sections retrieved are exactly the sections the model receives.
+    assert response.retrieved_chunk_ids == [s["id"] for s in data["sources"]]
     assert len(response.retrieved_chunk_ids) == 6
     for item in data["sources"]:
         assert item["text"] == CHUNKS[item["id"]].content
@@ -402,8 +403,6 @@ def test_model_sees_only_the_question_scope_date_and_at_most_four_current_sectio
         model_answer("answered", [("İade süresi belgede yazar.", ["D04#sure", "D99#uydurma"])]),
         # A real corpus section that was not given to the model for this request.
         model_answer("answered", [("Destek ekibine hafta içi ulaşılır.", ["D08#saatler"])]),
-        # Retrieved fifth with TOP_K=5, so not among the four sections the model received.
-        model_answer("answered", [("Parola sıfırlanır.", ["D09#sifre"])]),
         model_answer("answered", [("Şirket iade etiketi sağlar.", [])]),
         model_answer("answered", [("   ", ["D04#kargo"])]),
         model_answer("answered", [("Şirket etiket sağlar.", ["D04#kargo"])], ["garanti"]),
@@ -424,7 +423,6 @@ def test_model_sees_only_the_question_scope_date_and_at_most_four_current_sectio
     ids=[
         "fabricated-id",
         "corpus-id-not-provided",
-        "retrieved-but-over-the-section-limit",
         "claim-without-source",
         "blank-claim",
         "answered-with-missing-topics",
@@ -563,3 +561,13 @@ def test_source_check_is_not_a_meaning_check(tmp_path):
 
     assert response.status == "answered"
     assert response.answer == "İade süresi altmış gündür."
+
+
+def test_a_section_retrieved_fifth_is_given_to_the_model_and_may_be_cited():
+    scores = {**RETURNS_SCORES, "D09#sifre": 0.5}
+    answer = model_answer("answered", [("Parola sıfırlama bağlantısı gönderilir.", ["D09#sifre"])])
+
+    response, _ = ask_generative(answer, scores=scores, settings=load_settings({"TOP_K": "5"}))
+
+    assert response.retrieved_chunk_ids[-1] == "D09#sifre"
+    assert [source.chunk_id for source in response.sources] == ["D09#sifre"]

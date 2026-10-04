@@ -15,7 +15,6 @@ from app.contracts import (
     ErrorCode,
     ErrorDetail,
     ErrorResponse,
-    ReadinessChecks,
     ReadinessResponse,
     RunMetadata,
 )
@@ -54,7 +53,6 @@ def create_app(assistant: Assistant | None = None) -> FastAPI:
     settings = assistant.settings
     readiness = ReadinessResponse(
         status="ready",
-        checks=ReadinessChecks(corpus_index=True, embedding_model=True),
         run_metadata=RunMetadata(
             app_mode=settings.app_mode,
             # A generator exists only with a key; readiness never calls the paid model, so this

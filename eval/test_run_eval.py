@@ -16,10 +16,31 @@ SCOPE = {"country": "TR", "customer_type": "B2B", "product": "MH-10"}
 D04_SURE = "İade talebi, ürünün tesliminden itibaren 30 takvim günü içinde açılabilir."
 D04_TARIHLER = "İade süresi ürünün teslim tarihinden itibaren sayılır."
 D03_SURE = "İade talebi, ürünün tesliminden itibaren 14 takvim günü içinde açılabilir."
-DOCUMENT_TEXTS = {
-    "D03": f"## İade süresi {{#sure}}\n\n{D03_SURE}\n",
-    "D04": f"## İade süresi {{#sure}}\n\n{D04_SURE}\n\n## İki tarihin farkı {{#tarihler}}\n\n"
-    f"{D04_TARIHLER}\n",
+
+
+def document(doc_id, version, valid_from, valid_to, body):
+    return (
+        f"---\ndoc_id: {doc_id}\nprocedure_id: returns\ntitle: MH-10 İade Prosedürü\n"
+        f'version: "{version}"\nvalid_from: {valid_from}\nvalid_to: {valid_to}\n---\n\n{body}'
+    )
+
+
+SECTIONS = {
+    **run_eval.parse_document(
+        document(
+            "D03", "1.0", "2026-01-01", "2026-07-01", f"## İade süresi {{#sure}}\n\n{D03_SURE}\n"
+        )
+    ),
+    **run_eval.parse_document(
+        document(
+            "D04",
+            "2.0",
+            "2026-07-01",
+            "null",
+            f"## İade süresi {{#sure}}\n\n{D04_SURE}\n\n"
+            f"## İki tarihin farkı {{#tarihler}}\n\n{D04_TARIHLER}\n",
+        )
+    ),
 }
 RETURNS_D04 = {
     "procedure_id": "returns",
@@ -57,19 +78,9 @@ UNANSWERABLE = {
 }
 
 
-def section(chunk_id, quote, version="2.0"):
-    doc_id, section_id = chunk_id.split("#")
-    return {
-        "chunk_id": chunk_id,
-        "doc_id": doc_id,
-        "document_title": "MH-10 İade Prosedürü",
-        "version": version,
-        "section_id": section_id,
-        "heading_path": ["MH-10 İade Prosedürü", "İade süresi"],
-        "quote": quote,
-        "valid_from": "2026-07-01",
-        "valid_to": None,
-    }
+def section(chunk_id, **changes):
+    """A source/evidence object exactly as the API builds it from the corpus, optionally altered."""
+    return {**SECTIONS[chunk_id], **changes}
 
 
 def answered(**changes):
@@ -86,7 +97,7 @@ def answered(**changes):
                 "source_chunk_ids": ["D04#sure"],
             }
         ],
-        "sources": [section("D04#sure", D04_SURE)],
+        "sources": [section("D04#sure")],
         "evidence": [],
         "missing_topics": [],
         "reason_code": None,
@@ -120,7 +131,7 @@ def exchange(body, http_status=200):
 
 
 def check(question, body, mode="generative", http_status=200):
-    return run_eval.check_question(question, exchange(body, http_status), mode, DOCUMENT_TEXTS)
+    return run_eval.check_question(question, exchange(body, http_status), mode, SECTIONS)
 
 
 class CheckQuestionTests(unittest.TestCase):
@@ -139,7 +150,7 @@ class CheckQuestionTests(unittest.TestCase):
                 "version": "pass",
                 "source_validity": "pass",
                 "no_unnecessary_refusal": "pass",
-                "no_wrong_answer": "n/a",
+                "no_claims_when_unanswerable": "n/a",
                 "required_facts": "pass",
                 "forbidden_facts": "pass",
             },
@@ -167,11 +178,11 @@ class CheckQuestionTests(unittest.TestCase):
         self.assertEqual(result["checks"]["http"], "fail")
         self.assertEqual(result["checks"]["status"], "not_evaluable")
         self.assertEqual(result["checks"]["retrieval"], "not_evaluable")
-        self.assertEqual(result["checks"]["no_wrong_answer"], "n/a")
+        self.assertEqual(result["checks"]["no_claims_when_unanswerable"], "n/a")
 
     def test_transport_failure_is_recorded_as_such(self):
         failed = {**exchange(None, None), "transport_error": "timeout after 60 s"}
-        result = run_eval.check_question(QUESTION, failed, "generative", DOCUMENT_TEXTS)
+        result = run_eval.check_question(QUESTION, failed, "generative", SECTIONS)
 
         self.assertEqual(result["actual_status"], "transport_error")
         self.assertEqual(result["checks"]["http"], "fail")
@@ -188,7 +199,7 @@ class CheckQuestionTests(unittest.TestCase):
             answer=None,
             claims=[],
             sources=[],
-            evidence=[section("D04#sure", D04_SURE), section("D04#tarihler", D04_TARIHLER)],
+            evidence=[section("D04#sure"), section("D04#tarihler")],
             retrieved_chunk_ids=["D04#sure", "D04#tarihler"],
         )
         answerable = check(QUESTION, evidence_body, mode="evidence_only")
@@ -200,7 +211,8 @@ class CheckQuestionTests(unittest.TestCase):
         self.assertEqual(answerable["checks"]["required_facts"], "n/a")
         self.assertEqual(unanswerable["expected_status"], None)
         self.assertEqual(unanswerable["checks"]["status"], "n/a")
-        self.assertEqual(unanswerable["checks"]["no_wrong_answer"], "pass")
+        self.assertEqual(unanswerable["checks"]["no_claims_when_unanswerable"], "n/a")
+        self.assertEqual(answerable["checks"]["no_unnecessary_refusal"], "n/a")
 
     def test_refusal_of_an_answerable_question_is_an_unnecessary_refusal(self):
         result = check(QUESTION, insufficient())
@@ -210,11 +222,11 @@ class CheckQuestionTests(unittest.TestCase):
         self.assertEqual(result["checks"]["citation"], "fail")
         self.assertEqual(result["checks"]["retrieval"], "pass")
 
-    def test_claims_for_an_unanswerable_question_are_a_wrong_answer(self):
+    def test_claims_for_an_unanswerable_question_are_counted_as_claims(self):
         claim = {"text": "Almanya'da da 30 gün geçerlidir.", "source_chunk_ids": ["D04#sure"]}
         result = check(UNANSWERABLE, answered(claims=[claim]))
 
-        self.assertEqual(result["checks"]["no_wrong_answer"], "fail")
+        self.assertEqual(result["checks"]["no_claims_when_unanswerable"], "fail")
         self.assertEqual(result["checks"]["forbidden_facts"], "fail")
         self.assertEqual(result["checks"]["no_unnecessary_refusal"], "n/a")
 
@@ -239,7 +251,7 @@ class CheckQuestionTests(unittest.TestCase):
         }
         body = answered(
             claims=[{"text": "14 takvim günü.", "source_chunk_ids": ["D03#sure"]}],
-            sources=[section("D03#sure", D03_SURE, version="1.0")],
+            sources=[section("D03#sure")],
             retrieved_chunk_ids=["D03#sure"],
             version_decisions=[RETURNS_D04],
         )
@@ -261,11 +273,77 @@ class CheckQuestionTests(unittest.TestCase):
 
     def test_source_outside_the_retrieved_sections_or_with_a_changed_quote_is_invalid(self):
         not_retrieved = answered(retrieved_chunk_ids=["D04#tarihler"])
-        changed_quote = answered(sources=[section("D04#sure", D04_SURE.replace("30", "60"))])
-        wrong_section = answered(sources=[{**section("D04#sure", D04_SURE), "section_id": "kargo"}])
+        changed_quote = answered(sources=[section("D04#sure", quote=D04_SURE.replace("30", "60"))])
+        wrong_section = answered(sources=[section("D04#sure", section_id="kargo")])
 
         for body in (not_retrieved, changed_quote, wrong_section):
             self.assertEqual(check(QUESTION, body)["checks"]["source_validity"], "fail")
+
+    def test_answer_without_sources_or_candidates_leaves_source_validity_not_applicable(self):
+        # Nothing was cited, so there is nothing whose validity could pass or fail.
+        result = check(UNANSWERABLE, insufficient())
+
+        self.assertEqual(result["checks"]["source_validity"], "n/a")
+
+
+class SourceCheckAgainstRealCorpusTests(unittest.TestCase):
+    """Quotes are compared with the cited section of the real corpus, not with the whole file."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.sections = run_eval.load_sections(run_eval.KNOWLEDGE_DIR)
+
+    def body_citing(self, *items):
+        return answered(
+            claims=[{"text": "…", "source_chunk_ids": [item["chunk_id"] for item in items]}],
+            sources=list(items),
+            retrieved_chunk_ids=[item["chunk_id"] for item in items],
+        )
+
+    def source_validity(self, *items):
+        result = run_eval.check_question(
+            QUESTION, exchange(self.body_citing(*items)), "generative", self.sections
+        )
+        problems = [p for p in result["problems"] if p.startswith("source_validity:")]
+        return result["checks"]["source_validity"], problems
+
+    def test_real_section_cited_as_the_api_builds_it_passes(self):
+        self.assertEqual(self.source_validity(dict(self.sections["D04#sure"])), ("pass", []))
+
+    def test_quote_of_another_section_under_this_section_id_fails(self):
+        item = {**self.sections["D04#sure"], "quote": self.sections["D04#kargo"]["quote"]}
+
+        self.assertEqual(self.source_validity(item)[0], "fail")
+
+    def test_empty_quote_fails(self):
+        item = {**self.sections["D04#sure"], "quote": ""}
+
+        self.assertEqual(self.source_validity(item)[0], "fail")
+
+    def test_section_missing_from_the_corpus_fails_even_when_repeated_consistently(self):
+        item = {
+            **self.sections["D04#sure"],
+            "chunk_id": "D04#yok",
+            "section_id": "yok",
+        }
+
+        self.assertEqual(self.source_validity(item)[0], "fail")
+
+    def test_metadata_that_differs_from_the_section_record_fails(self):
+        changes = (("version", "1.0"), ("valid_to", "2027-01-01"), ("heading_path", ["x"]))
+        for field, value in changes:
+            item = {**self.sections["D04#sure"], field: value}
+            self.assertEqual(self.source_validity(item)[0], "fail", field)
+
+    def test_section_reader_matches_the_supported_document_format(self):
+        record = self.sections["D04#kargo"]
+
+        self.assertEqual(record["doc_id"], "D04")
+        self.assertEqual(record["version"], "2.0")
+        self.assertIsNone(record["valid_to"])
+        self.assertEqual(record["heading_path"][0], "MH-10 İade Prosedürü")
+        self.assertTrue(record["quote"].startswith("Şirket"))
+        self.assertNotIn("##", record["quote"])
 
 
 class SummaryTests(unittest.TestCase):
@@ -287,7 +365,7 @@ class SummaryTests(unittest.TestCase):
             {"passed": 1, "applicable": 3, "failed": ["E16"], "not_evaluable": ["E18"]},
         )
         self.assertEqual(
-            summary["no_wrong_answer"],
+            summary["no_claims_when_unanswerable"],
             {"passed": 1, "applicable": 1, "failed": [], "not_evaluable": []},
         )
         self.assertEqual(summary["http"]["passed"], 3)
@@ -371,7 +449,8 @@ class QuestionSetTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.questions = run_eval.load_questions(run_eval.DEFAULT_QUESTIONS)
-        cls.corpus = run_eval.load_document_texts(run_eval.KNOWLEDGE_DIR)
+        cls.sections = run_eval.load_sections(run_eval.KNOWLEDGE_DIR)
+        cls.doc_ids = {record["doc_id"] for record in cls.sections.values()}
 
     def test_has_e01_to_e18_dated_as_the_brief_says(self):
         self.assertEqual([q["id"] for q in self.questions], [f"E{n:02d}" for n in range(1, 19)])
@@ -394,15 +473,40 @@ class QuestionSetTests(unittest.TestCase):
                 if fact["pattern"] is not None:
                     re.compile(fact["pattern"])
             for chunk_id in question["expected_source_ids"]:
-                doc_id, section_id = chunk_id.split("#")
-                self.assertIn(f"{{#{section_id}}}", self.corpus[doc_id], chunk_id)
+                self.assertIn(chunk_id, self.sections)
             for decision in question["expected_versions"].values():
-                self.assertIn(decision["selected"], self.corpus)
-                self.assertTrue(set(decision["excluded"]) <= set(self.corpus))
+                self.assertIn(decision["selected"], self.doc_ids)
+                self.assertTrue(set(decision["excluded"]) <= self.doc_ids)
         self.assertEqual(
             next(q for q in self.questions if q["id"] == "E18")["expected_source_ids"],
             ["D04#sure", "D05#bedel"],
         )
+
+    def test_reworded_question_keeps_its_previous_text_and_reason(self):
+        # E15 did not name its topic; the rewording is versioned instead of silently replaced,
+        # so earlier runs stay readable as runs of the earlier question.
+        e15 = next(q for q in self.questions if q["id"] == "E15")
+
+        self.assertEqual(e15["revision"], 2)
+        self.assertIn("iade", e15["request"]["question"])
+        self.assertEqual(
+            e15["revisions"][0]["question"], "Türkiye'de kaç günüm var; Almanya'da da aynı mı?"
+        )
+        self.assertTrue(e15["revisions"][0]["reason"])
+        for question in self.questions:
+            if "revision" not in question:
+                self.assertNotIn("revisions", question, question["id"])
+
+    def test_report_shows_the_question_revision(self):
+        e15 = next(q for q in self.questions if q["id"] == "E15")
+        item = check(e15, insufficient(), mode="generative")
+        lines = run_eval._question_details(
+            e15,
+            {**exchange(insufficient()), "request": {**e15["request"], "mode": "generative"}},
+            item,
+        )
+
+        self.assertIn("- Soru sürümü: 2 (önceki metinler `revisions` alanında)", lines)
 
 
 if __name__ == "__main__":

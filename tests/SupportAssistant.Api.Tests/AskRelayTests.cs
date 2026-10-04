@@ -95,7 +95,6 @@ public class AskRelayTests
     // Python HTTP status is what the RAG service would send; the API decides its own from the code.
     [Theory]
     [InlineData(400, "invalid_request", HttpStatusCode.BadRequest)]
-    [InlineData(503, "service_not_ready", HttpStatusCode.ServiceUnavailable)]
     [InlineData(503, "generation_not_configured", HttpStatusCode.ServiceUnavailable)]
     [InlineData(503, "provider_unavailable", HttpStatusCode.ServiceUnavailable)]
     [InlineData(504, "generation_timeout", HttpStatusCode.GatewayTimeout)]
@@ -160,6 +159,8 @@ public class AskRelayTests
         { 422, """{"detail": [{"loc": ["body", "question"], "msg": "Field required"}]}""" },
         // A code the RAG service never produces (only the API does) is contract drift, not a 413.
         { 413, """{"request_id": "client-1", "error": {"code": "payload_too_large", "message": "x"}}""" },
+        // Removed from the contract: the RAG service never answers before it has loaded everything.
+        { 503, """{"request_id": "client-1", "error": {"code": "service_not_ready", "message": "x"}}""" },
         { 503, """{"request_id": "client-1", "error": {"code": "something_new", "message": "x"}}""" },
     };
 

@@ -18,6 +18,7 @@ from app.generation import (
     compose_answer,
     load_system_prompt,
     render_input,
+    validate_answer,
 )
 from app.settings import load_settings
 from tests.fake_assistant import CHUNKS
@@ -324,3 +325,58 @@ def test_unusable_model_output_is_invalid_generation_output(body, logged):
 
     assert failed.value.code == "invalid_generation_output"
     assert logged in failed.value.detail
+
+
+# --- log details hold no free text ----------------------------------------------------------------
+
+# Free text the model or the provider could put into a field that ends up in the log detail.
+FREE_TEXT = "ZXQ müşteri Ayşe Yılmaz 0532"
+
+
+def test_source_ids_that_were_not_provided_are_counted_not_echoed():
+    answer = ModelAnswer.model_validate(
+        {
+            **VALID_OUTPUT,
+            "claims": [{"text": "x", "source_chunk_ids": ["D08#saatler", FREE_TEXT]}],
+        }
+    )
+
+    with pytest.raises(GenerationError) as failed:
+        validate_answer(answer, {"D08#saatler"})
+
+    assert failed.value.code == "invalid_generation_output"
+    assert FREE_TEXT not in failed.value.detail
+    assert "claim 1 cites 1 source(s) not provided" in failed.value.detail
+
+
+def test_provider_codes_and_reasons_are_logged_only_as_identifier_like_labels():
+    body = {
+        "error": {
+            "message": FREE_TEXT,
+            "code": f"quota {FREE_TEXT}",
+            "metadata": {
+                "ineligibility_reasons": [{"reason": FREE_TEXT}, {"reason": "zdr-violation"}]
+            },
+        }
+    }
+    generator, _ = make_generator(
+        httpx2.Response(429, json=body), OPENAI_BASE_URL="https://openrouter.ai/api/v1"
+    )
+
+    with pytest.raises(GenerationError) as failed:
+        generate(generator)
+
+    assert FREE_TEXT not in failed.value.detail
+    assert "code='unrecognized'" in failed.value.detail
+    assert "zdr-violation" in failed.value.detail
+
+
+def test_incomplete_reason_is_logged_only_as_an_identifier_like_label():
+    generator, _ = make_generator(
+        httpx2.Response(200, json=response_body([], status="incomplete", reason=FREE_TEXT))
+    )
+
+    with pytest.raises(GenerationError) as failed:
+        generate(generator)
+
+    assert FREE_TEXT not in failed.value.detail

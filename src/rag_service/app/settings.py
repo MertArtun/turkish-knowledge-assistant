@@ -59,7 +59,9 @@ class Settings(BaseModel):
     knowledge_dir: Path = Path("../../data/knowledge")
     index_path: Path = Path("../../var/index.sqlite3")
     model_cache_dir: Path = Path("../../var/models")
-    top_k: int = Field(default=4, ge=1, le=20)
+    # TOP_K is also the number of sections the model reads. Each section and the question are at
+    # most 512 embedding-model tokens (checked at index load), so 8 bounds the model's input.
+    top_k: int = Field(default=4, ge=1, le=8)
     # Disabled until a threshold is measured on development questions (cosine range is -1..1).
     min_retrieval_score: float | None = Field(default=None, ge=-1.0, le=1.0)
     llm_timeout_seconds: float = Field(default=25.0, gt=0, le=120)

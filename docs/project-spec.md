@@ -136,7 +136,7 @@ Serbest metinden tarih çıkarılmaz; soru başka bir tarihi soruyor ama istek o
 |---|---|---|
 | .NET (dış, `127.0.0.1:8080`) | `POST /api/ask` | Soru sorma |
 | .NET | `GET /health/live` | Süreç çalışıyor mu: `{"status":"live"}` |
-| .NET | `GET /health/ready` | Python readiness'ının tipli kopyası (3 sn timeout; ham gövde aktarılmaz). HTTP durumu gövdedeki `status`'tan gelir: `ready` 200, `not_ready` 503. Python'a ulaşılamazsa, süre dolarsa veya gövde bozuksa hata sözleşmesi döner: 503 `upstream_unavailable`, 504 `upstream_timeout`, 502 `upstream_invalid_response` |
+| .NET | `GET /health/ready` | Python readiness'ının tipli kopyası, 200 (3 sn timeout; ham gövde aktarılmaz). Python'a ulaşılamazsa (ör. yükleniyor), süre dolarsa veya cevap sözleşmeye uymuyorsa (başarı dışı HTTP durumu ya da geçersiz gövde) hata sözleşmesi döner: 503 `upstream_unavailable`, 504 `upstream_timeout`, 502 `upstream_invalid_response` |
 | Python (iç, `rag:8000`, host'a port açılmaz) | `POST /internal/ask`, `GET /health/live`, `GET /health/ready` | Aynı gövde şekilleri |
 
 JSON alanları snake_case; tarihler `YYYY-MM-DD`; boş değerler `null` veya `[]` olarak her zaman yazılır (alan atlanmaz).
@@ -166,7 +166,7 @@ Uygulama: `src/rag_service/app/service.py::Assistant.ask`. Sıra:
 4. Soru embedding'i ayrı bir thread'de, aynı anda tek çağrı olarak hesaplanır (event loop bloke olmaz). Token sınırı burada denetlenir.
 5. Arama yapılır (§4). Eşik tüm adayları elerse `insufficient_evidence` + `not_in_documents` döner (eşik kapalıyken bu olmaz).
 6. `evidence_only` cevabında `evidence`, sıralı top-k bölümlerdir; `quote` ve metadata yüklü korpustan gelir. `version_decisions` getirilen bölümlerin prosedürleri için, ilk görünme sırasıyladır. Eşik kapalı olduğu için belgelerde cevabı olmayan bir soruda da adaylar döner; adaylar cevap değildir.
-7. `generative` istekte ilk en fazla 4 bölüm (`GENERATION_SECTION_LIMIT`; `TOP_K` daha büyük olsa da) modele gider ve model çıktısı aşağıdaki kurallarla doğrulanır (Üretim).
+7. `generative` istekte getirilen `TOP_K` bölümün tamamı modele gider; getirilen bölümler ile modele verilen bölümler aynı kümedir (tek bağlam bütçesi) ve model çıktısı aşağıdaki kurallarla doğrulanır (Üretim).
 
 3 ve 5. adımlardaki `insufficient_evidence` cevaplarında `evidence`, `retrieved_chunk_ids` ve `version_decisions` boştur; `answer` sunucunun yazdığı standart Türkçe açıklamadır. Model `insufficient_evidence` derse arama yapılmış olduğu için `retrieved_chunk_ids` ve `version_decisions` doludur.
 
@@ -224,7 +224,6 @@ Kaynak/evidence nesnesi: `chunk_id`, `doc_id`, `document_title`, `version`, `sec
 |---|---|---|---|
 | `invalid_request` | .NET, Python | 400 | Şema/doğrulama hatası. Python'da FastAPI'nin varsayılan 422'si 400'e çevrilir; Python ayrıca token sınırını aşan soruyu bu kodla reddeder. .NET şemayı zaten denetlediği için Python'dan gelen `invalid_request`'i "soru veya kapsam sınırı aşıldı" mesajıyla döner |
 | `payload_too_large` | .NET | 413 | Gövde 16 KiB'den büyük |
-| `service_not_ready` | Python | 503 | İndeks veya embedding modeli hazır değil. Şu an üretilmez: Python her şeyi bağlantı kabul etmeden önce yükler (Readiness) |
 | `generation_not_configured` | Python | 503 | `generative` istendi ama anahtar/yapılandırma yok (mock cevap yok, sessiz fallback yok) |
 | `provider_unavailable` | Python | 503 | Sağlayıcıya bağlanılamadı veya sağlayıcı HTTP hatası döndü: kimlik doğrulama, kota, hız sınırı, model erişimi, OpenRouter yönlendirme reddi, 5xx |
 | `generation_timeout` | Python | 504 | LLM çağrısı `LLM_TIMEOUT_SECONDS` içinde bitmedi |
@@ -236,10 +235,9 @@ Kaynak/evidence nesnesi: `chunk_id`, `doc_id`, `document_title`, `version`, `sec
 
 ### Readiness
 
-`GET /health/ready` → hazırsa 200, değilse 503; gövde her iki durumda aynı şekilde:
-`status` (`ready`|`not_ready`), `checks` (`corpus_index`, `embedding_model`), `run_metadata` (`app_mode`, `generation_configured`, `llm_model`, `embedding_model`, `embedding_revision`, `corpus_fingerprint`, `prompt_version`, `prompt_hash`, `top_k`, `min_retrieval_score`). Readiness hiçbir zaman ücretli LLM çağrısı yapmaz; `generation_configured=true` yalnızca anahtarla bir generator kurulduğunu söyler, anahtarın, kotanın veya model erişiminin çalıştığını kanıtlamaz. `llm_model` yapılandırılan model ID'sidir; sağlayıcının bildirdiği model her üretimin log satırındadır.
+`GET /health/ready` → 200 ve gövde: `status` (yalnızca `ready`), `run_metadata` (`app_mode`, `generation_configured`, `llm_model`, `embedding_model`, `embedding_revision`, `corpus_fingerprint`, `prompt_version`, `prompt_hash`, `top_k`, `min_retrieval_score`; `min_retrieval_score` dışında hiçbiri `null` olamaz). Readiness hiçbir zaman ücretli LLM çağrısı yapmaz; `generation_configured=true` yalnızca anahtarla bir generator kurulduğunu söyler, anahtarın, kotanın veya model erişiminin çalıştığını kanıtlamaz. `llm_model` yapılandırılan model ID'sidir; sağlayıcının bildirdiği model her üretimin log satırındadır.
 
-Python servisi ayarları, korpusu, embedding modelini ve indeksi bağlantı kabul etmeden önce yükler ve doğrular (`app/main.py::create_app`). Herhangi biri başarısız olursa süreç hata koduyla durur. Bu yüzden Python'un servis ettiği readiness her zaman `ready`'dir; yükleme sürerken (ilk model indirmesi dâhil) port kapalıdır ve .NET 503 `upstream_unavailable` döner. Docker Compose'da Python servisinin sağlık kontrolü bu uçtur; .NET servisi, Python servisi sağlıklı olana kadar başlatılmaz. `not_ready` gövdesi sözleşmede durur ama Python şu an bunu üretmez. `corpus_fingerprint` yüklenen indeksin fingerprint'idir; `prompt_hash`, prompt dosyasının SHA-256 değeridir.
+Python servisi ayarları, korpusu, embedding modelini ve indeksi bağlantı kabul etmeden önce yükler ve doğrular (`app/main.py::create_app`). Herhangi biri başarısız olursa süreç hata koduyla durur. Bu yüzden "hazır değil" gövdesi yoktur: yükleme sürerken (ilk model indirmesi dâhil) port kapalıdır ve .NET 503 `upstream_unavailable` döner. Docker Compose'da Python servisinin sağlık kontrolü bu uçtur; .NET servisi, Python servisi sağlıklı olana kadar başlatılmaz. `corpus_fingerprint` yüklenen indeksin fingerprint'idir; `prompt_hash`, prompt dosyasının SHA-256 değeridir.
 
 ### Cevapta olmayan, logda olan
 
@@ -247,7 +245,7 @@ Skorlar, arama/üretim/toplam süreleri, prompt hash'i, model revision'ı ve cor
 
 Loglar satır başına bir JSON nesnesidir. Python'da formatter `app/logs.py::JsonFormatter`, uvicorn'a `--log-config log_config.json` ile verilir; uvicorn'un kendi satırları da JSON olur. .NET yerleşik JSON console formatter'ını kullanır (`appsettings.json`). Her satırda zaman, seviye, kaynak (logger/kategori) ve mesaj vardır. İsteğe ait satırlarda ayrıca şu alanlar bulunur:
 - Python `ask`, her `/internal/ask` sonucu için: `request_id`, `mode`, `outcome` (durum, `reason_code` veya hata kodu), `retrieved` (`chunk_id` ve skor), `versions` (getirilen bölümlerin belge sürümleri, ör. `D04@2.0`), `embed_ms`, `search_ms`, `total_ms`, `corpus` (fingerprint'in ilk 12 karakteri).
-- Python `generation`, her üretim için: `request_id`, `outcome`, `cited`, `reason_code`, `missing_topics` (sayı), `model` (sağlayıcının bildirdiği), `prompt` (`sürüm@hash'in ilk 12 karakteri`), `generate_ms`, `input_tokens`, `output_tokens`, `reasoning_tokens`. Hata durumunda `outcome` hata kodudur ve `detail` güvenli ayrıntıyı taşır: HTTP durumu, sağlayıcı hata kodu, OpenRouter yönlendirme nedeni, şema hatası türü veya reddedilen kaynak ID'leri.
+- Python `generation`, her üretim için: `request_id`, `outcome`, `cited`, `reason_code`, `missing_topics` (sayı), `model` (sağlayıcının bildirdiği), `prompt` (`sürüm@hash'in ilk 12 karakteri`), `generate_ms`, `input_tokens`, `output_tokens`, `reasoning_tokens`. Hata durumunda `outcome` hata kodudur ve `detail` güvenli ayrıntıyı taşır: HTTP durumu, sağlayıcı hata kodu, OpenRouter yönlendirme nedeni, şema hatası türü veya reddedilen kaynak ID'lerinin sayısı (ID'lerin kendisi model çıktısıdır, yazılmaz). Sağlayıcıdan gelen kod ve nedenler yalnızca tanımlayıcı biçimindeyse (`[A-Za-z0-9_.:-]`, en fazla 64 karakter) yazılır; değilse `unrecognized` yazılır.
 - Python `refused` (`request_id`, `code`) ve `invalid_request` (`request_id`, `invalid_fields`: yalnızca alan adları).
 - Python başlangıcı: `building index …`, `rebuilding index …: neden`, `reusing index …: fingerprint … matches`.
 - .NET, her Python çağrısı için `State` içinde: `RequestId`, `UpstreamStatus`, `ElapsedMs`; zaman aşımında `TimeoutSeconds`; hata eşlemesinde `ErrorCode`; sözleşmeye uymayan cevapta yalnızca `Contract` ve `JsonPath`. HttpClient fabrikasının çağrı başına satırları kapalıdır (`Warning`).
@@ -264,11 +262,11 @@ Soru, cevap, belge metni, model çıktısının metni, sağlayıcının hata mes
 | `ask-request.json` | İstek |
 | `ask-response-answered.json`, `-partial.json`, `-insufficient-evidence.json`, `-evidence-only.json` | Başarılı cevap (her durum için bir örnek) |
 | `error-response.json` | Hata cevabı |
-| `readiness-not-ready.json` | Readiness |
+| `readiness-ready.json` | Readiness |
 
 ## 6. Yapılandırma
 
-İsimler `.env.example`, kod ve README'de birebir aynıdır. Python: `APP_MODE` (`evidence_only` varsayılan | `generative`), `OPENAI_API_KEY` (baştaki/sondaki boşluk kırpılır), `OPENAI_BASE_URL` (http/https; boşsa `https://api.openai.com/v1`; OpenRouter: `https://openrouter.ai/api/v1`), `OPENAI_MODEL` (uç noktanın beklediği model ID'si; boşsa OpenAI'ın `gpt-6-luna`'sı, OpenRouter'da `openai/gpt-6-luna`; istek bir reasoning effort gönderdiği için reasoning modeli olmalıdır), `EMBEDDING_MODEL`, `EMBEDDING_REVISION` (tam 40 haneli commit hash'i; boşsa `614241f622f53c4eeff9890bdc4f31cfecc418b3`; kısa hash veya dal adı reddedilir), `KNOWLEDGE_DIR`, `INDEX_PATH`, `MODEL_CACHE_DIR`, `TOP_K` (1–20, varsayılan 4), `MIN_RETRIEVAL_SCORE` (boş = kapalı; −1..1), `LLM_TIMEOUT_SECONDS` (0–120, varsayılan 25). .NET: `RAG_SERVICE_URL` (mutlak http/https adresi; boşsa `http://rag:8000`; yol kısmı kullanılmaz) ve `RAG_TIMEOUT_SECONDS` (0 < x ≤ 300, ondalık olabilir; boşsa 45). .NET `.env` dosyasını okumaz; yerelde bu değişkenler kabuktan verilir. Readiness çağrısının 3 sn timeout'u sabittir. Docker Compose'da Python servisine yalnızca yukarıdaki Python değişkenleri (üç yol hariç) kabuktan veya `.env`'den aktarılır. Yollar imajda sabittir: `KNOWLEDGE_DIR=/knowledge` (salt okunur bind mount), `INDEX_PATH=/var/lib/rag/index/index.sqlite3` (`rag-index` volume'ü), `MODEL_CACHE_DIR=/var/lib/rag/models` (`rag-models` volume'ü). .NET servisi `RAG_SERVICE_URL=http://rag:8000` (sabit) ve `RAG_TIMEOUT_SECONDS` alır; anahtarı almaz. Geçersiz değer veya `APP_MODE=generative` + boş anahtar başlangıçta açık hata verir; hata mesajı değişken adını söyler, değerini asla yazmaz. Boş değer iki serviste de "verilmemiş" sayılır.
+İsimler `.env.example`, kod ve README'de birebir aynıdır. Python: `APP_MODE` (`evidence_only` varsayılan | `generative`), `OPENAI_API_KEY` (baştaki/sondaki boşluk kırpılır), `OPENAI_BASE_URL` (http/https; boşsa `https://api.openai.com/v1`; OpenRouter: `https://openrouter.ai/api/v1`), `OPENAI_MODEL` (uç noktanın beklediği model ID'si; boşsa OpenAI'ın `gpt-6-luna`'sı, OpenRouter'da `openai/gpt-6-luna`; istek bir reasoning effort gönderdiği için reasoning modeli olmalıdır), `EMBEDDING_MODEL`, `EMBEDDING_REVISION` (tam 40 haneli commit hash'i; boşsa `614241f622f53c4eeff9890bdc4f31cfecc418b3`; kısa hash veya dal adı reddedilir), `KNOWLEDGE_DIR`, `INDEX_PATH`, `MODEL_CACHE_DIR`, `TOP_K` (1–8, varsayılan 4; modele giden bölüm sayısı da budur), `MIN_RETRIEVAL_SCORE` (boş = kapalı; −1..1), `LLM_TIMEOUT_SECONDS` (0–120, varsayılan 25). .NET: `RAG_SERVICE_URL` (mutlak http/https adresi; boşsa `http://rag:8000`; yol kısmı kullanılmaz) ve `RAG_TIMEOUT_SECONDS` (0 < x ≤ 300, ondalık olabilir; boşsa 45). .NET `.env` dosyasını okumaz; yerelde bu değişkenler kabuktan verilir. Readiness çağrısının 3 sn timeout'u sabittir. Docker Compose'da Python servisine yalnızca yukarıdaki Python değişkenleri (üç yol hariç) kabuktan veya `.env`'den aktarılır. Yollar imajda sabittir: `KNOWLEDGE_DIR=/knowledge` (salt okunur bind mount), `INDEX_PATH=/var/lib/rag/index/index.sqlite3` (`rag-index` volume'ü), `MODEL_CACHE_DIR=/var/lib/rag/models` (`rag-models` volume'ü). .NET servisi `RAG_SERVICE_URL=http://rag:8000` (sabit) ve `RAG_TIMEOUT_SECONDS` alır; anahtarı almaz. Geçersiz değer veya `APP_MODE=generative` + boş anahtar başlangıçta açık hata verir; hata mesajı değişken adını söyler, değerini asla yazmaz. Boş değer iki serviste de "verilmemiş" sayılır.
 
 ## 7. Değerlendirme
 
@@ -281,6 +279,7 @@ Uygulama: `eval/run_eval.py` (yalnızca Python standart kütüphanesi; servis ko
 - `required_facts`, `forbidden_facts`: `{fact, pattern}` listeleri. `fact` insan incelemesi içindir. `pattern` doluysa claim metinlerinde büyük/küçük harf duyarsız aranan düzenli ifadedir; `null` ise yalnızca insan inceler.
 - `expected_source_ids`: cevabın dayanması gereken bölümler; cevapsız sorularda `[]`.
 - `expected_versions`: `{procedure_id: {selected, excluded: {doc_id: reason}}}`; yalnızca sürüm kararının ölçüldüğü sorularda dolu.
+- `revision`, `revisions` (isteğe bağlı): soru veya rubrik değiştirilirse `revision` artar, önceki metin ve değişikliğin nedeni `revisions` listesinde kalır; eski koşuların sonuçları eski metnin sonucu olarak okunur. Şu an yalnızca E15 sürüm 2'dedir: ilk metin konusunu (iade) söylemiyordu.
 
 Ayrıca 4 geliştirme sorusu `eval/dev_questions.jsonl` içindedir (`id`, `category`, `request`, `expected_source_ids`); eşik ve bölümleme kararları önce onlarda denenir (`src/rag_service/measure_retrieval.py`).
 
@@ -289,7 +288,7 @@ Ayrıca 4 geliştirme sorusu `eval/dev_questions.jsonl` içindedir (`id`, `categ
 - HTTP hataları ve bağlantı hataları da gerçek çıktı olarak kaydedilir; hiçbir soru tekrar denenmez.
 - Koşudan önce `/health/ready` okunur. Servis hazır değilse koşu başlamaz. `generative` koşu, `generation_configured=false` ise başlamaz (`blocked`; model çağrısı yapılmaz). Readiness koşu sonunda yeniden okunur ve değişip değişmediği kaydedilir.
 - Çıktı `eval/results/<run_id>/`: `actual.jsonl` (her HTTP alışverişi olduğu gibi), `checks.json` (metadata, soru bazında kontroller, sayılar), `report.md` (beklenen ve gerçek karşılaştırması).
-- Metadata: gerçek başlangıç ve bitiş zamanı; commit SHA ve dirty bayrağı (`src`, `data`, `compose.yaml` veya eval dosyaları commit'ten farklı mı); readiness'taki `run_metadata` (corpus fingerprint, embedding modeli ve revision'ı, LLM modeli, prompt sürümü ve hash'i, `top_k`, eşik); mod; soru sayısı. İstekteki `as_of` değerlendirilen iş tarihidir, gerçek çalıştırma tarihi değildir.
+- Metadata: gerçek başlangıç ve bitiş zamanı; commit SHA ve dirty bayrağı (`src`, `data`, `compose.yaml` veya eval dosyaları commit'ten farklı mı); readiness'taki `run_metadata` (corpus fingerprint, embedding modeli ve revision'ı, LLM modeli, prompt sürümü ve hash'i, `top_k`, eşik); mod; soru sayısı ve soru dosyasının SHA-256'sı (soru veya rubrik değişince değişir). İstekteki `as_of` değerlendirilen iş tarihidir, gerçek çalıştırma tarihi değildir.
 
 **Kontroller.** Her kontrol her soru için `pass`, `fail`, `n/a` (bu soruya ve moda uygulanmaz) veya `not_evaluable` (uygulanır ama API kullanılabilir bir cevap dönmedi) olur. Rapor her kontrol için geçen/uygulanan sayısını, başarısız ve değerlendirilemeyen soruların ID'lerini verir; tek bir başarı yüzdesi verilmez.
 
@@ -300,9 +299,9 @@ Ayrıca 4 geliştirme sorusu `eval/dev_questions.jsonl` içindedir (`id`, `categ
 | `retrieval` | beklenen bölümü olanlar | Beklenen bölümlerin tamamı `retrieved_chunk_ids` içinde |
 | `citation` | `generative` ve beklenen bölümü olanlar | Beklenen bölümlerin tamamı `sources` içinde |
 | `version` | `expected_versions` dolu olanlar | Prosedür için karar var; seçilen belge ve dışlama nedenleri beklenenle aynı |
-| `source_validity` | hepsi | Her kaynak/aday getirilen bölümlerden ve seçili sürümden; `chunk_id` = `doc_id#section_id`; `quote` belge dosyasında birebir geçiyor; claim atıfları ile `sources` aynı küme |
-| `no_unnecessary_refusal` | `expected_status` `answered` veya `partial` | Durum `insufficient_evidence` değil |
-| `no_wrong_answer` | `expected_status` `insufficient_evidence` | Claim yok |
+| `source_validity` | kaynak veya aday döndüren cevaplar (yoksa `n/a`) | Her kaynak/aday için bölüm korpusta var; `quote` boş değil ve o bölümün birebir metni; belge, başlık, sürüm, başlık yolu ve geçerlilik tarihleri bölüm kaydıyla aynı; bölüm getirilenler arasında ve seçili sürümden; `chunk_id` = `doc_id#section_id`; claim atıfları ile `sources` aynı küme. Bölüm kaydı korpustan runner'ın kendi okuyucusuyla okunur (servisin loader'ından bağımsız) |
+| `no_unnecessary_refusal` | `generative` ve `expected_status` `answered` veya `partial` | Durum `insufficient_evidence` değil |
+| `no_claims_when_unanswerable` | `generative` ve `expected_status` `insufficient_evidence` | Claim yok. Yalnızca claim üretilip üretilmediğini ölçer; üretilen bir claim'in anlamsal olarak yanlış olup olmadığını ölçmez |
 | `required_facts`, `forbidden_facts` | `generative` ve en az bir `pattern`'i olan sorular | Gerekli kalıpların tamamı claim'lerde var / yasak kalıpların hiçbiri yok |
 
 Birden fazla beklenen bölümü olan sorular (E18) için `retrieval` ve `citation` ayrıca raporlanır. Kalıp kontrolleri yalnızca claim metinlerinde arar, çünkü eksik konu cümlesi soruyu tekrar edebilir. Kalıp eşleşmesi anlamsal doğruluk değildir; doğru bölüme atıf yapan yanlış bir cümle yalnızca kalıp tutarsa yakalanır.
@@ -321,8 +320,8 @@ Birden fazla beklenen bölümü olan sorular (E18) için `retrieval` ve `citatio
 - [x] Alıntı modunda LLM hiç çağrılmıyor; generative istek anahtarsız 503 dönüyor.
 - [x] .NET: istek doğrulama, giden JSON + request ID, 400/413/503/504/502 eşlemesi, timeout/iptal, readiness testleri geçiyor.
 - [x] Python ve C# fixture round-trip testleri geçiyor.
-- [ ] `pytest`, `ruff check`, `ruff format --check`, `dotnet build`, `dotnet test`, `dotnet format --verify-no-changes` gerçekten çalıştırıldı.
+- [x] `pytest`, `ruff check`, `ruff format --check`, `dotnet build`, `dotnet test`, `dotnet format --verify-no-changes` gerçekten çalıştırıldı.
 - [x] `docker compose up --build` ile anahtarsız alıntı modu çalışıyor.
-- [ ] Eval .NET üzerinden gerçekten koşuldu; sonuçlar ve metadata kayıtlı; insan incelemesi `pending`.
-- [ ] `.env`, anahtar, model ağırlığı, indeks ve build çıktısı Git'te yok.
-- [ ] README komutları, ortam değişkenleri ve örnekler implementasyonla aynı; temiz kopyada denendi.
+- [x] Eval .NET üzerinden gerçekten koşuldu; sonuçlar ve metadata kayıtlı; insan incelemesi `pending`.
+- [x] `.env`, anahtar, model ağırlığı, indeks ve build çıktısı Git'te yok.
+- [x] README komutları, ortam değişkenleri ve örnekler implementasyonla aynı; temiz kopyada, `.env` olmadan denendi.

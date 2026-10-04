@@ -57,7 +57,7 @@ public sealed record RagSettings(Uri ServiceUrl, TimeSpan Timeout)
 /// </summary>
 public sealed class RagServiceClient(HttpClient http, RagSettings settings, ILogger<RagServiceClient> logger)
 {
-    // Compose and the eval runner poll readiness; a service this slow counts as not ready.
+    // Readiness is a cheap, constant reply; a RAG service this slow is reported as upstream_timeout.
     private static readonly TimeSpan ReadinessTimeout = TimeSpan.FromSeconds(3);
 
     public async Task<IResult> AskAsync(AskRequest request, string requestId, CancellationToken requestAborted)
@@ -100,16 +100,12 @@ public sealed class RagServiceClient(HttpClient http, RagSettings settings, ILog
             return transportError.ToResult(requestId);
         }
 
-        // The RAG service sends the same body with 200 (ready) or 503 (not ready); the body decides.
-        var readiness = Parse<ReadinessResponse>(reply, requestId);
-        if (readiness is null)
-        {
-            return ApiError.UpstreamInvalidResponse.ToResult(requestId);
-        }
-        var statusCode = readiness.Status == ReadinessStatus.Ready
-            ? StatusCodes.Status200OK
-            : StatusCodes.Status503ServiceUnavailable;
-        return Results.Json(readiness, ContractJson.Options, statusCode: statusCode);
+        // While the RAG service loads, its port is closed (upstream_unavailable above); once it
+        // answers, the only valid reply is a success status with a "ready" body.
+        var readiness = reply.IsSuccessStatusCode ? Parse<ReadinessResponse>(reply, requestId) : null;
+        return readiness is null
+            ? ApiError.UpstreamInvalidResponse.ToResult(requestId)
+            : Results.Json(readiness, ContractJson.Options);
     }
 
     private async Task<UpstreamReply> SendAsync(

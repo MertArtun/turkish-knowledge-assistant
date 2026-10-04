@@ -8,6 +8,7 @@ final answer, titles, versions and quotes itself; the model never produces them.
 
 import hashlib
 import json
+import re
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -172,7 +173,7 @@ class OpenAIGenerator:
             # The provider's message is not logged: it can echo part of the key. OpenRouter's
             # routing refusals (e.g. a data policy excluding every allowed endpoint) carry short
             # reason slugs, which are logged instead.
-            detail = f"status={error.status_code} code={error.code!r}"
+            detail = f"status={error.status_code} code={_label(error.code)!r}"
             if reasons := _routing_refusal_reasons(error.body):
                 detail += f" routing={reasons!r}"
             raise GenerationError("provider_unavailable", detail) from None
@@ -183,7 +184,7 @@ class OpenAIGenerator:
 
         if response.status != "completed":
             reason = response.incomplete_details.reason if response.incomplete_details else None
-            detail = f"response status={response.status!r} reason={reason!r}"
+            detail = f"response status={_label(response.status)!r} reason={_label(reason)!r}"
             raise GenerationError("invalid_generation_output", detail)
         if any(
             content.type == "refusal"
@@ -210,7 +211,18 @@ def _routing_refusal_reasons(body: object) -> list[str]:
     reasons = metadata.get("ineligibility_reasons") if isinstance(metadata, dict) else None
     if not isinstance(reasons, list):
         return []
-    return [str(item.get("reason"))[:64] for item in reasons if isinstance(item, dict)]
+    return [_label(item.get("reason")) for item in reasons if isinstance(item, dict)]
+
+
+# Provider codes and reasons are free text from outside; only identifier-like values are logged.
+SAFE_LABEL = re.compile(r"[A-Za-z0-9_.:-]{1,64}")
+
+
+def _label(value: object) -> str | None:
+    if value is None:
+        return None
+    text = str(value)
+    return text if SAFE_LABEL.fullmatch(text) else "unrecognized"
 
 
 def validate_answer(answer: ModelAnswer, provided_ids: Collection[str]) -> None:
@@ -224,9 +236,10 @@ def validate_answer(answer: ModelAnswer, provided_ids: Collection[str]) -> None:
             problems.append(f"claim {number} has no source")
         # A real corpus section that was not given to the model for this request is as
         # unverifiable as an invented one.
+        # The IDs themselves are model output and stay out of the log; their count is enough.
         foreign = [chunk_id for chunk_id in claim.source_chunk_ids if chunk_id not in provided_ids]
         if foreign:
-            problems.append(f"claim {number} cites sources not provided: {foreign!r}")
+            problems.append(f"claim {number} cites {len(foreign)} source(s) not provided")
     if any(not topic.strip() for topic in answer.missing_topics):
         problems.append("blank missing topic")
 

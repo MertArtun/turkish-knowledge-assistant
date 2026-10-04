@@ -23,7 +23,6 @@ ExclusionReason = Literal["expired", "future_effective", "not_approved", "scope_
 ErrorCode = Literal[
     "invalid_request",
     "payload_too_large",
-    "service_not_ready",
     "generation_not_configured",
     "provider_unavailable",
     "generation_timeout",
@@ -177,11 +176,6 @@ class ErrorResponse(ContractModel):
     error: ErrorDetail
 
 
-class ReadinessChecks(ContractModel):
-    corpus_index: bool
-    embedding_model: bool
-
-
 class RunMetadata(ContractModel):
     """Non-secret settings that identify a run; the eval runner records them via /health/ready."""
 
@@ -189,15 +183,16 @@ class RunMetadata(ContractModel):
     generation_configured: bool
     llm_model: str
     embedding_model: str
-    embedding_revision: str | None
-    corpus_fingerprint: str | None
-    prompt_version: str | None
-    prompt_hash: str | None
+    embedding_revision: str
+    corpus_fingerprint: str
+    prompt_version: str
+    prompt_hash: str
     top_k: int
     min_retrieval_score: float | None
 
 
 class ReadinessResponse(ContractModel):
-    status: Literal["ready", "not_ready"]
-    checks: ReadinessChecks
+    # Only "ready": the service loads the corpus, model and index before it accepts connections,
+    # so while it loads its port is closed (the .NET API then answers upstream_unavailable).
+    status: Literal["ready"]
     run_metadata: RunMetadata

@@ -16,7 +16,7 @@ public class ContractFixtureTests
         { "ask-response-insufficient-evidence.json", typeof(AskResponse) },
         { "ask-response-evidence-only.json", typeof(AskResponse) },
         { "error-response.json", typeof(ErrorResponse) },
-        { "readiness-not-ready.json", typeof(ReadinessResponse) },
+        { "readiness-ready.json", typeof(ReadinessResponse) },
     };
 
     [Theory]

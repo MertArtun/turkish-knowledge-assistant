@@ -26,8 +26,6 @@ def test_ready_reports_the_loaded_index_and_the_run_metadata():
     assert response.status_code == 200
     readiness = ReadinessResponse.model_validate(response.json())
     assert readiness.status == "ready"
-    assert readiness.checks.corpus_index is True
-    assert readiness.checks.embedding_model is True
     metadata = readiness.run_metadata
     assert metadata.app_mode == "evidence_only"
     assert metadata.generation_configured is False

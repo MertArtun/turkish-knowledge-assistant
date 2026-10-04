@@ -21,7 +21,7 @@ public enum ReasonCode { NotInDocuments, UnsupportedScope, AsOfRequired, NoValid
 public enum ExclusionReason { Expired, FutureEffective, NotApproved, ScopeMismatch }
 
 [JsonConverter(typeof(SnakeCaseEnumConverter<ReadinessStatus>))]
-public enum ReadinessStatus { Ready, NotReady }
+public enum ReadinessStatus { Ready }
 
 public sealed record Scope(string Country, string CustomerType, string Product);
 
@@ -68,21 +68,20 @@ public sealed record ErrorDetail(string Code, string Message);
 
 public sealed record ErrorResponse(string RequestId, ErrorDetail Error);
 
-public sealed record ReadinessChecks(bool CorpusIndex, bool EmbeddingModel);
-
 public sealed record RunMetadata(
     AnswerMode AppMode,
     bool GenerationConfigured,
     string LlmModel,
     string EmbeddingModel,
-    string? EmbeddingRevision,
-    string? CorpusFingerprint,
-    string? PromptVersion,
-    string? PromptHash,
+    string EmbeddingRevision,
+    string CorpusFingerprint,
+    string PromptVersion,
+    string PromptHash,
     int TopK,
     double? MinRetrievalScore);
 
-public sealed record ReadinessResponse(ReadinessStatus Status, ReadinessChecks Checks, RunMetadata RunMetadata);
+// The RAG service only listens once everything is loaded, so "ready" is the only status it sends.
+public sealed record ReadinessResponse(ReadinessStatus Status, RunMetadata RunMetadata);
 
 /// <summary>The one serializer configuration for the client, the RAG service and the fixtures.</summary>
 public static class ContractJson

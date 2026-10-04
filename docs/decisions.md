@@ -1,8 +1,170 @@
 # Teknik kararlar ve bilinen sınırlar
 
-Her karar notu şu sırayı izler: **Seçim · Alternatif · Neden · Bedel · Ne zaman değişir.** Davranışın kendisi ve sözleşme `docs/project-spec.md` içindedir; burada tekrar edilmez.
+Önce beş ana karar (A–E), sonra ayrıntılı karar notları (K2–K29), değerlendirme bulguları ve bilinen sınırlar gelir. Her not şu sırayı izler: **Seçim · Alternatif · Neden · Bedel · Ne zaman değişir.** Davranışın kendisi ve sözleşme `docs/project-spec.md` içindedir; burada tekrar edilmez.
 
-## Karar notları
+## Beş ana karar
+
+### A — İki servis: .NET dış API + Python RAG servisi
+- **Seçim:** İstemci yalnızca .NET Minimal API ile konuşur. .NET isteği doğrular, request ID'yi yönetir, Python'u tek typed `HttpClient` ile çağırır, süre ve iptali uygular, hataları kapalı bir tabloyla eşler. Belge, sürüm, arama, üretim ve kaynak doğrulama kurallarının hepsi Python'dadır. Ayrıntı: K6, K18–K21, K26.
+- **Alternatif:** Tek FastAPI servisi (en basiti); her şeyi .NET'te yazmak.
+- **Neden:** İşveren .NET ve FastAPI'yi önerdi; .NET tarafı servis entegrasyonunu (sözleşme doğrulaması, timeout, hata eşleme) ayrı ve küçük bir katman olarak gösterir. Türkçe embedding ve LLM SDK'sı için Python ekosistemi daha doğrudandır. Kurallar tek dilde kaldığı için iki dilde ayrışamaz.
+- **Bedel:** İkinci süreç ve imaj, ağ sınırı, iki test ortamı, iki tarafta DTO ve ortak fixture'lar, katmanlı timeout (LLM 25 sn < .NET 45 sn) ve upstream hatalarının ayrı kodlarla eşlenmesi. On belge için teknik bir zorunluluk değildir; "mikroservis ölçeklenir" gerekçesi kullanılmadı.
+- **Ne zaman değişir:** .NET katmanı doğrulama ve eşleme dışında değer üretmiyorsa ve inceleme bunu gerektirmiyorsa tek FastAPI servisine inilir.
+
+### B — Markdown tek kaynak, SQLite türetilmiş indeks
+- **Seçim:** Belgeler Git'te Markdown + YAML frontmatter'dır ve tek doğruluk kaynağıdır; sürüm kararını taşıyan metadata da oradadır. Bölüm embedding'leri bir SQLite dosyasında türetilmiş veri olarak durur; fingerprint uyuşmazsa başlangıçta yeniden üretilir. Ayrıntı: K8–K11 (belge biçimi), K16 (indeks).
+- **Alternatif:** Belgeleri bir veritabanında veya içerik yönetim sisteminde tutmak; ayrı bir vektör veritabanı; her başlangıçta embedding'leri yeniden hesaplamak; pickle veya `.npy` önbelleği.
+- **Neden:** Markdown insan tarafından okunur, değişiklik Git diff'inde görünür ve gözden geçirilebilir. 10 belge ve 32 bölüm için ayrı bir sunucu işletmek gereksizdir; SQLite tek dosyadır, ek süreç istemez ve hangi korpus ve modelle üretildiği fingerprint ile izlenir.
+- **Bedel:** Yazar katı bölüm sözdizimini bilmelidir. Çalışırken belge güncellemesi yoktur; yeniden başlatma gerekir. Bu boyutta kalıcı indeks zorunlu da değildir (her başlangıçta yeniden hesap 0,4 sn); fingerprint ve doğrulama kodu ek bakım getirir. Belgeyi yerinde düzenlemek sürüm numarasını değiştirmez (bilinen sınırlar).
+- **Ne zaman değişir:** Belgeleri teknik olmayan kişiler yazıp onaylayacaksa onay akışı olan bir içerik sistemi; korpus binlerce bölüme büyürse artımlı indeks ve yaklaşık arama.
+
+### C — Yerel çok dilli embedding, sürüm görünümünde tam tarama
+- **Seçim:** `intfloat/multilingual-e5-small` sabit bir commit'te, ONNX Runtime ile CPU'da çalışır; soru yerelde embed edilir. Arama, seçili sürümlerin bölümlerinde normalize vektörlerle tam dot product'tır; `top_k=4`, skor eşiği kapalı. Ayrıntı: K15, K17, K22.
+- **Alternatif:** Sağlayıcının embedding API'si; daha büyük bir model; BM25, hibrit arama veya reranker; yaklaşık arama (ANN).
+- **Neden:** Soru dış sağlayıcıya gitmez ve anahtarsız alıntı modu mümkün olur. 32 bölümde tam tarama milisaniyenin altında, deterministik ve incelenebilir. `TOP_K` hem getirilen hem modele verilen bölüm sayısıdır (varsayılan 4, en fazla 8); bağlamı küçük tutar ve her bölüm 512 token sınırındadır.
+- **Bedel:** Skorlar dar bir aralıkta toplanıyor, bu yüzden eşik konamadı ve cevapsız sorularda da 4 aday döner. Değerlendirmede üç soruda (E15, E16, E18) beklenen bölüm ilk 4'te değildi. İlk çalıştırma yaklaşık 490 MB indirme ister; pooling ve normalizasyon bizim kodumuzdadır.
+- **Ne zaman değişir:** Ölçülen retrieval hatası bölümleme düzeltmesiyle geliştirme sorularında kapanmazsa BM25/hibrit arama veya reranker, katkısı ölçülerek eklenir. Korpus büyürse yaklaşık arama.
+
+### D — Deterministik sürüm seçimi, aramadan önce
+- **Seçim:** Hangi belge sürümünün kullanılabileceğine sunucu, metadata'dan ve sabit kurallarla karar verir: kapsam birebir, yalnızca `approved`, `[valid_from, valid_to)`, her prosedür ve kapsam için en fazla bir geçerli sürüm; çakışma korpus hatasıdır. Arama yalnızca seçilen sürümlerde yapılır; `version_decisions` sunucudan gelir. Ayrıntı: K4, K12–K14.
+- **Alternatif:** Tüm korpusta arayıp sonra filtrelemek; en yüksek sürüm numarasını veya en yeni `valid_from`'u seçmek; iki sürümü modele verip seçtirmek; `supersedes` zincirini izlemek.
+- **Neden:** Eski sürümün metni modele hiç gitmez. Aynı tarih ve kapsam her zaman aynı sürümü seçer; dışlanan sürüm ve nedeni makinece okunur. Çakışma sessizce çözülmez. Sonradan filtrelemede eski bir sürüm ilk k'yı doldurup geçerli bölümü dışarı itebilir.
+- **Bedel:** Tarihsel cevap için `as_of` istekte verilmelidir; serbest metinden tarih okunmaz. Metadata ile bağlanmamış belgeler arasındaki anlamsal çelişki ve belge gövdesindeki tarih ifadeleri denetlenmez. Kapsam birebir karşılaştırılır (`tr` ≠ `TR`).
+- **Ne zaman değişir:** Birden çok ülke veya ürün desteklenirse kapsamlar arası kural (ör. genel → özel) açıkça tasarlanır; sürümler belge değil bölüm düzeyinde değişmeye başlarsa.
+
+### E — Yapılandırılmış üretim ve çekimserlik
+- **Seçim:** Model katı bir JSON şemasıyla yalnızca `status`, kaynaklı `claims`, `missing_topics` ve `reason_code` döndürür. Sunucu her atfı bu istekte modele verilen bölümlere karşı denetler; ihlali düzeltmez, 502 ile reddeder. Cevap metnini, kaynak bilgisini ve birebir alıntıyı sunucu kurar. Kapsam veya geçerli sürüm yoksa model hiç çağrılmadan `insufficient_evidence` döner; aksi hâlde kanıtın yeterli olup olmadığını model değerlendirir. Sağlayıcı hataları hata kodudur, "belgede yok" sayılmaz. Ayrıntı: K23–K25, K28.
+- **Alternatif:** Serbest metin cevap ve sonradan kaynak eşleme; geçersiz atfı silip devam etmek; skor eşiğiyle ret; ikinci bir LLM ile denetim; sağlayıcı hatasında alıntı moduna düşmek.
+- **Neden:** Atıf makinece denetlenebilir; uydurma veya bu istekte verilmemiş kaynak sessizce cevaba giremez. Eşik ölçümle desteklenmediği için ret kararını kanıtı gören model verir; durum ve atıf tutarlılığını sunucu zorlar.
+- **Bedel:** Kaynak doğrulaması anlamsal değildir: doğru bölüme atıf yapan yanlış bir sayı geçer. Çekimserlik modele bağlıdır ve deterministik değildir. Retrieval doğru bölümü kaçırırsa model konuyu eksik konu olarak yazar; bu, gerçek bilgi yokluğundan ayırt edilemez.
+- **Ne zaman değişir:** Eval, bir kuralın doğru cevapları sistematik olarak reddettiğini veya yanlış cevapları kaçırdığını gösterirse kural ya da prompt, ölçülerek değişir. İnsan incelemesi sayı hatalarının sık olduğunu gösterirse, claim'deki sayının atıf yapılan alıntıda geçmesi gibi dar bir kontrol ölçülerek eklenir.
+
+## Ayrıntılı karar notları
+
+### K2 — Tek cevap şekli, durum değişmezleri tek yerde
+- **Seçim:** Dört durum için tek `AskResponse`; tüm alanlar her zaman yazılır (`null`/`[]`). Hangi durumun neyi taşıyacağı `app/contracts.py::AskResponse._status_matches_content` içinde bir kez tanımlıdır; ortak fixture'lar her iki dilde round-trip edilir.
+- **Alternatif:** Duruma göre ayrı şemalar (discriminated union); ya da değişmezleri yalnızca üretim katmanında kontrol etmek.
+- **Neden:** C# DTO'su ve fixture eşitliği basit kalır; sunucu kendi içinde çelişkili bir cevap (ör. `answered` + eksik konu, atıfsız kaynak) üretirse istemciye gitmeden yakalanır.
+- **Bedel:** Bazı alanlar çoğu durumda boştur; istemci önce `status` okumalıdır. Model çıktısı önce `validate_answer` ile denetlenir ve ihlal 502 `invalid_generation_output` olur (K25); `AskResponse` doğrulayıcısına kadar ulaşan bir ihlal sunucu hatasıdır (500).
+- **Ne zaman değişir:** İstemcide derleme zamanı güvenliği gerekirse durum başına şema.
+
+### K3 — Teşhis ayrıntısı cevapta değil, logda
+- **Seçim:** Cevapta `request_id`, `sources`, `version_decisions` ve skorsuz, sıralı `retrieved_chunk_ids` var. Skorlar, süreler, prompt hash'i, model revision'ı ve fingerprint JSON loglarına gider; çalışma sabitleri `/health/ready` → `run_metadata` ile okunur.
+- **Alternatif:** Her cevaba büyük bir `diagnostics` nesnesi.
+- **Neden:** Cosine skoru cevapta güven yüzdesi gibi okunur; sözleşme küçülür. Eval runner retrieval'ı dış API üzerinden ölçebilmek için yalnızca sıralı ID'lere ihtiyaç duyar.
+- **Bedel:** Tek bir isteğin skorlarını görmek için loga bakmak gerekir. Runner, metadata'yı readiness'tan ayrı okuduğu için koşu sırasında yapılandırma değişirse fark edilmeyebilir (bu yüzden runner readiness'ı koşu başında ve sonunda okuyup karşılaştırır).
+- **Ne zaman değişir:** İncelemede log erişimi olmadan istek bazlı teşhis gerekirse.
+
+### K4 — `version_decisions` kapsamı
+- **Seçim:** Getirilen bölümlerin prosedürleri için, ilk görünme sırasıyla birer karar; tek sürümlü prosedürde `excluded=[]`.
+- **Alternatif:** Yalnızca çok sürümlü prosedürler; ya da korpustaki tüm prosedürler.
+- **Neden:** Her kaynağın sürüm kontrolünden geçtiği görünür, liste top-k ile sınırlı kalır, ilgisiz prosedürler dökülmez.
+- **Bedel:** Tek sürümlü prosedürler için az bilgi taşıyan girdiler.
+- **Ne zaman değişir:** Liste incelemede gürültü yaratırsa yalnızca dışlama içeren kararlar gösterilir.
+
+### K5 — Yapılandırma: düz Pydantic modeli + `load_settings(environ)`
+- **Seçim:** Ortam değişkeni adları `ENV_TO_FIELD` ile alanlara eşlenir; doğrulama hatası değeri içermeyen `ConfigError`'a çevrilir (`from None`).
+- **Alternatif:** `pydantic-settings`.
+- **Neden:** Ek bağımlılık yok; testler ortamı sözlük olarak verir; Pydantic'in hata metni ve zincirlenmiş traceback'i ham girdiyi (anahtar dâhil) basabileceği için hata metni bilinçli olarak sadeleştirilir.
+- **Bedel:** Eşleme elle tutulur (bir test `.env.example` ile kodun aynı isimleri taşıdığını denetler). Göreli yollar çalışma dizinine göre çözülür; Python komutları `src/rag_service` içinden çalışır.
+- **Ne zaman değişir:** Yapılandırma iç içe yapılara veya birden çok kaynağa büyürse.
+
+### K6 — Kapalı hata kodu kümesi
+- **Seçim:** İki servis aynı `error.code` kümesini kullanır; .NET Python'un hata gövdesini hiçbir zaman aynen aktarmaz, bilinen kodu kendi güvenli mesajıyla eşler, bilinmeyeni `upstream_invalid_response` (502) sayar. Model reddi (refusal) `invalid_generation_output` (502), sağlayıcının isteği reddetmesi (kimlik, kota, erişim) `provider_unavailable` (503) olur.
+- **Alternatif:** Python'un HTTP durumunu ve mesajını olduğu gibi geçirmek.
+- **Neden:** İç ayrıntı (dosya yolu, exception) dışarı sızmaz; altyapı hataları "dokümanda bilgi yok" ile karışmaz.
+- **Bedel:** Yeni kod eklemek iki tarafta ve fixture'da değişiklik gerektirir.
+- **Ne zaman değişir:** Kod sayısı büyür ve eşleme bakım yükü olursa.
+
+### K7 — Araç ve paket seçimleri
+- `SupportAssistant.slnx`: SDK 10'da `dotnet new sln` bu biçimi üretiyor; `dotnet build/test/format` doğrudan çalıştı.
+- `global.json` 10.0.102 + `rollForward: latestPatch`: aynı özellik bandındaki daha yeni yamalar kabul edilir (ileride Docker SDK imajının yama sürümü farklı olabilir), farklı bant reddedilir.
+- Test projesinden `coverlet.collector` çıkarıldı (coverage hedefi yok). `Microsoft.AspNetCore.Mvc.Testing` sürümü `dotnet add package` ile çözüldü ve restore edildi. .NET 10, üst düzey ifadeli `Program` sınıfını public ürettiği için `public partial class Program` eklemeye gerek kalmadı (test bu olmadan derlendi).
+- Python test istemcisi için `httpx2`: kurulu Starlette sürümü `httpx` ile `TestClient` kullanımında kullanımdan kaldırma uyarısı veriyor ve kaynak kodu önce `httpx2`'yi arıyor.
+- `pydantic` doğrudan import edildiği için açık bağımlılık olarak yazıldı (FastAPI üzerinden dolaylı gelmesine güvenilmedi).
+
+### K8 — Tek bölüm sözdizimi, gövdede bölüm dışı metin yok
+- **Seçim:** Tek bölüm biçimi var: `## Başlık {#id}`. Belge başlığı frontmatter'dan gelir. Bunun dışındaki her başlık ve ilk bölümden önceki metin yükleme hatasıdır (tam kural spec §3'te).
+- **Alternatif:** ID'yi başlıktan otomatik üretmek; `<a id="...">` HTML çapaları; `###` alt bölümlerle derin başlık yolu; bölüm dışı metni sessizce atlamak.
+- **Neden:**
+  - Otomatik ID, Türkçe transliterasyon belirsizliği getirir ("süre" `sure` mi, `suere` mi?). Başlık yeniden yazılınca da değişir; o zaman eval'daki `expected_source_ids` ve eski atıflar kırılır.
+  - Tek biçimi ayrıştırmak ve testle sabitlemek kolaydır.
+  - Bölüm dışı metni sessizce atlamak, aranamayan ve atıf yapılamayan bir kural bırakabilir. Bu yüzden atlanmaz, reddedilir.
+- **Bedel:** Yazar giriş paragrafı veya alt başlık kullanamaz. DEMO notu gövdede olamadığı için frontmatter'a YAML yorumu olarak kondu; GitHub'ın Markdown görünümünde bu not görünmez (README ve spec kurguyu ayrıca belirtiyor).
+- **Ne zaman değişir:** Belgeler alt bölüm gerektirecek kadar büyürse. O zaman `###` desteklenir ve `heading_path` derinleşir.
+
+### K9 — Dosya seçimi: ad kalıbı, beklenmeyen `.md` reddi, symlink reddi
+- **Seçim:** Yalnızca dizinin doğrudan altındaki `NN-slug.md` dosyaları okunur. Kalıba uymayan `.md` hatadır. `.md` olmayan dosyalar ve alt dizinler okunmaz. Her symlink reddedilir.
+- **Alternatif:** Repo genelinde `**/*.md` taraması; ayrı bir manifest dosyası; kalıba uymayan dosyaları sessizce atlamak.
+- **Neden:** README, eval cevapları veya `.env` korpusa karışamaz. Yanlış adlandırılmış bir belge de sessizce kaybolmaz. Yalnızca doğrudan çocuklar okunduğu ve symlink reddedildiği için ayrıca "çözülmüş yol dizin içinde mi" kontrolüne gerek kalmaz.
+- **Bedel:** `data/knowledge/` içine konan bir `README.md` servisi başlatmaz (hata mesajı nedenini söyler). macOS'un `.DS_Store` dosyası ise `.md` olmadığı için sorun çıkarmaz.
+- **Ne zaman değişir:** Korpus klasörlere bölünürse veya belge sayısı manifest gerektirecek kadar büyürse.
+
+### K10 — Katı metadata tipleri ve ilk hatada durma
+- **Seçim:** Frontmatter Pydantic `strict=True` ile doğrulanır. Tarih yalnızca YAML tarihi, `version` yalnızca tırnaklı metin olabilir. Tüm alanlar zorunludur, `null` açıkça yazılır. Yükleme ilk hatada durur.
+- **Alternatif:** Esnek ayrıştırma + normalleştirme; tüm hataları toplayıp birlikte raporlamak.
+- **Neden:** Esnek modda `version: 2.10` sessizce `2.1` olur; tırnaklı tarih ise metin olarak kalır. İkisi de sürüm kararını ve gösterimi bozar. `valid_to` alanının unutulması ile "açık uçlu" kararı aynı şey değildir, bu yüzden alan açıkça yazılmalıdır. İlk hatada durmak hem kodu hem testleri basit tutar; on belgelik korpusta tek tek düzeltmek yeterince ucuz.
+- **Bedel:** Yazar tırnak kuralını bilmeli. Hata metni Pydantic'in İngilizce teknik mesajıdır (ör. `version: Input should be a valid string`). Birden çok hata varsa düzeltme turu uzar.
+- **Ne zaman değişir:** Belgeleri teknik olmayan kişiler yazarsa, tüm hataları birlikte ve Türkçe raporlamak gerekir.
+
+### K11 — Korpusun yazımı
+- **Seçim:**
+  - Zorunlu bölümler tek kuralı koşuluyla birlikte taşır. D04 `sure`/`kargo` ve D05 `bedel` metinleri, sözleşme fixture'larındaki alıntılarla birebir aynıdır; bir test bunu denetler.
+  - Her belgede yalnızca o konuya özgü açıklayıcı bölümler var (`kullanim`, `sinir`, `iletisim` vb.).
+  - İade belgelerinde `uygulama` bölümü kapsamı ve "sürümü talebin açıldığı tarih belirler" kuralını, `tarihler` bölümü de "süre teslimden sayılır" ayrımını açıklar.
+  - Politika sayıları (14/30 gün, 5 iş günü, 2 çalışma saati, 09.00–18.00) yalnızca zorunlu bölümde geçer.
+- **Alternatif:**
+  - Brief'in 120–250 kelime hedefine ulaşmak için yeni kurallar eklemek (iade koşulları, ödeme yöntemi, mesai dışı süreç).
+  - Her belgeye aynı "Kapsam: Türkiye/B2B/MH-10" bölümünü koymak.
+  - Fixture alıntılarını korpusa göre değiştirmek.
+- **Neden:**
+  - Yeni kural, cevapsız soruların temelini bozar ve doğrulanamayan bilgi ekler.
+  - On belgede tekrarlanan kapsam bölümü, "Almanya'da da 30 gün mü?" gibi sorularda top-4'ü birbirine benzeyen kapsam bölümleriyle doldurup `D04#sure`'u dışarı itebilir.
+  - Sayının tek bölümde durması, beklenen kaynağı (`D04#sure`) belirsizleştirmez.
+  - Fixture'lar iki dilin ortak sözleşme örneği olduğu için korpusa göre değiştirilmedi; korpus metni onlarla aynı yazıldı.
+- **Bedel:**
+  - Belgeler bölüm başlıkları dâhil 83–128 kelimedir; 10 belgeden 9'u 120'nin altında.
+  - Açıklayıcı bölümler ek chunk'tır ve aramada zorunlu bölümün önüne geçebilir. Değerlendirmede üç soruda beklenen bölüm ilk 4'te değildi (E15, E16, E18); nedeni incelenecek.
+  - Belge metnindeki tarih ifadeleri ("1 Temmuz 2026 ve sonrasında açılan talepler") metadata ile otomatik karşılaştırılmaz.
+- **Ne zaman değişir:** Değerlendirmede üç soruda (E15, E16, E18) beklenen bölüm ilk 4'te değildi; kök neden incelemesi bekliyor. Bölümleme değiştirilirse etkisi önce geliştirme sorularında ölçülür ve kaydedilir.
+
+### K12 — Sürüm çakışması: yüklemede ret, seçimde ayrıca koruma
+- **Seçim:** Onaylı sürümlerin tarih çakışması `load_corpus` içinde reddedilir; asıl kontrol budur. `select_versions` ise bir tarihte birden çok geçerli sürüm görürse seçim yapmaz, `CorpusError` verir.
+- **Alternatif:** Yalnızca yükleme kontrolü; ya da çakışmada en yüksek sürümü veya en yeni `valid_from`'u seçmek.
+- **Neden:**
+  - `select_versions` yalnızca metadata alan açık bir fonksiyondur. Testler, bir v3 provası veya ileride başka bir çağıran onu doğrulanmamış veriyle çağırabilir.
+  - Korumasız hâlde ilk belge sessizce seçilirdi; bu, "dosya sırasıyla çözme" yasağını gizlice çiğnemek olurdu.
+  - En yüksek sürümü seçmek, onaylanmamış bir takvim hatasını tahminle örter.
+- **Bedel:** Aynı kural iki biçimde var: yüklemede aralık kesişimi, seçimde "bu tarihte birden çok geçerli". İkisi ayrı testlerle sabit (`test_overlapping_approved_versions_are_rejected`, `test_two_valid_approved_versions_are_an_error_not_a_choice`).
+- **Ne zaman değişir:** Seçim yalnızca doğrulanmış korpus tipini kabul edecek şekilde daraltılırsa koruma gereksizleşir.
+
+### K13 — Dışlama nedeni: tek neden, kural sırasıyla
+- **Seçim:** Her dışlanan sürüm tek bir neden taşır: kapsam → status → tarih sırasıyla ilk başarısız kontrol (tablo spec §4'te). Taslak ve geri çekilmiş belgeler aynı `not_approved` nedenini alır. Karar korpustaki **her** prosedür için üretilir; cevapta hangilerinin gösterileceğini K4 belirler.
+- **Alternatif:** Başarısız tüm kontrolleri liste olarak vermek; `draft` ve `withdrawn` için ayrı nedenler; yalnızca getirilen prosedürler için karar hesaplamak.
+- **Neden:**
+  - Sözleşme tek `reason` alanı ve dört değer tanımlar; onu büyütmeye gerek görülmedi.
+  - Sıra, brief §7'deki seçim adımlarıyla aynıdır, bu yüzden nedeni okuyan kişi hangi adımda elendiğini anlar.
+  - Tüm prosedürler için karar hesaplamak ucuzdur (10 belge). Servisin `unsupported_scope` (tüm nedenler `scope_mismatch`) ile `no_valid_version` (kapsam tutuyor ama geçerli sürüm yok) ayrımını yapabilmesi için de gereklidir.
+- **Bedel:**
+  - Cevapta geri çekilmiş bir belge ile taslak ayırt edilemez.
+  - Başka kapsamdaki bir taslak yalnızca `scope_mismatch` olarak görünür.
+  - Bu korpusta tüm belgeler TR kapsamında olduğu için `scope_mismatch` yalnızca TR dışı isteklerde ortaya çıkar.
+- **Ne zaman değişir:** İnceleyen kişinin geri çekilme ile taslağı ayırması gerekirse yeni bir neden değeri eklenir (spec, fixture ve C# birlikte güncellenir).
+
+### K14 — Etkin tarih ve kapsam
+- **Seçim:**
+  - `effective_as_of`, istekte tarih yoksa enjekte edilen saatin anını (varsayılan `datetime.now(UTC)`) `ZoneInfo("Europe/Istanbul")` ile yerel tarihe çevirir.
+  - Varsayılan kapsam `versioning.py` içinde sabittir.
+  - Kapsam karşılaştırması birebirdir (büyük/küçük harf dâhil).
+- **Alternatif:** Sabit `+03:00` ofseti; sunucunun yerel saatini kullanmak; kapsamı büyük/küçük harfe duyarsız karşılaştırmak; varsayılan kapsamı ortam değişkeni yapmak.
+- **Neden:**
+  - Tarih UTC'den alınsaydı, her gün 00.00–03.00 (İstanbul) arasında bir önceki gün kullanılırdı. 1 Temmuz 2026'nın ilk üç saatinde D04 yerine D03 seçilirdi. Test, 20:59/21:00 UTC gün dönümünü sabitliyor.
+  - Sunucunun yerel saati konteynerde UTC'dir.
+  - `ZoneInfo`, saat dilimi kuralı değişse de doğru kalır. `python:3.12-slim` imajında `Europe/Istanbul` çözüldü (`docker run` ile denendi), ek `tzdata` paketi gerekmedi.
+  - Harf duyarsız karşılaştırma bir tür örtük fallback olurdu.
+  - Varsayılan kapsamı yapılandırmaya taşımak bugün hiçbir gereksinime hizmet etmiyor.
+- **Bedel:** İstemci `"tr"` gönderirse `TR` belgeleri seçilmez (`unsupported_scope`). Saat enjeksiyonu yalnızca fonksiyon parametresiyle yapılır; servis katmanı bu parametreyi taşımalıdır.
+- **Ne zaman değişir:** Birden çok ülke/ürün desteklenirse varsayılan kapsam yapılandırmaya ya da isteğe zorunlu alana dönüşür.
 
 ### K15 — Embedding: modelin kendi ONNX dosyası + ONNX Runtime (CPU)
 - **Seçim:**
@@ -100,11 +262,11 @@ Her karar notu şu sırayı izler: **Seçim · Alternatif · Neden · Bedel · N
 - **Ne zaman değişir:** Dağıtık izleme (OpenTelemetry) eklenirse.
 
 ### K21 — Python başlangıcı: önce yükle, sonra dinle
-- **Seçim:** `create_app`, ayarları, korpusu, embedding modelini ve indeksi bağlantı kabul etmeden önce yükler ve doğrular. Geçersiz korpus, indirilemeyen model veya kullanılamaz indeks süreci durdurur. Servis edilen readiness her zaman `ready`'dir.
+- **Seçim:** `create_app`, ayarları, korpusu, embedding modelini ve indeksi bağlantı kabul etmeden önce yükler ve doğrular. Geçersiz korpus, indirilemeyen model veya kullanılamaz indeks süreci durdurur. Bu yüzden sözleşmede "hazır değil" durumu yoktur: readiness gövdesi yalnızca `ready` olabilir.
 - **Alternatif:** Yüklemeyi arka planda yapmak ve bu sürede `/health/ready`'de `not_ready`, `/internal/ask`'te `service_not_ready` dönmek.
 - **Neden:** Yarım yüklü servis hiç istek almaz; "hazır değil" durumu kodda değil süreç durumunda tutulur. Arka plan yüklemesinde, başarısız yüklemeden sonra süreci durdurmak için ayrı bir mekanizma gerekirdi.
-- **Bedel:** İlk model indirmesi sürerken port kapalıdır: `/health/live` de cevap vermez, .NET 503 `upstream_unavailable` döner. `not_ready` ve `service_not_ready` sözleşmede duruyor ama Python şu an bunları üretmiyor.
-- **Ne zaman değişir:** Konteyner ortamı yükleme sürerken canlılık sinyali isterse yükleme arka plana alınır. İstemezse `not_ready` ve `service_not_ready` sözleşmeden çıkarılır.
+- **Bedel:** İlk model indirmesi sürerken port kapalıdır: `/health/live` de cevap vermez, .NET 503 `upstream_unavailable` döner. "Yükleniyor" ile "durdu" dışarıdan ayırt edilemez; ayrım `docker compose logs rag` ile yapılır.
+- **Ne zaman değişir:** Konteyner ortamı yükleme sürerken canlılık sinyali isterse yükleme arka plana alınır ve "hazır değil" durumu sözleşmeye geri eklenir. Compose'da bu gerekmedi (aşağıda). Bu yüzden ilk sözleşmedeki `not_ready` durumu, `checks` nesnesi ve `service_not_ready` hata kodu, hiçbir zaman üretilmedikleri için çıkarıldı.
 - **Docker Compose'da (K26):** Sağlık kontrolü readiness'ı kullanır ve yükleme süresini `start_period` ile bekler. Yükleme sürerken canlılık sinyali gerekmedi, çünkü canlılığa bakıp konteyneri yeniden başlatan bir orkestratör yok.
 
 ### K22 — Alıntı modu akışı ve sorgu embedding'inin çalıştırılması
@@ -137,21 +299,21 @@ Her karar notu şu sırayı izler: **Seçim · Alternatif · Neden · Bedel · N
   - OpenRouter ek bir aracıdır ve kendi veri politikası vardır. `store=false`, OpenRouter'ın veya OpenAI'ın kendi saklama politikalarını ortadan kaldırmaz.
   - Daha yeni model bu görevde daha iyi olduğu anlamına gelmez; kaliteyi yalnızca eval gösterir. Başlangıç modeli sabit bir snapshot olduğu için seçilmişti; sağlayıcının yanıtta yalnızca takma adı bildirmesi bu güvenceyi zayıflatır (aşağıda).
   - OpenAI'ın model sayfasında tarihli bir snapshot yok (`gpt-6-luna`). OpenRouter'da `openai/gpt-6-luna` takma adı ileride başka bir snapshot'a geçebilir. Sağlayıcının bildirdiği model her üretimin log satırına yazılır.
-  - Reasoning tokenları çıktı bütçesinden yer. İlk üç canlı çağrıda (düşük effort) reasoning tokenı 0, çıktı 50–74 token, süre 1,3–2,8 sn oldu; 1000 token ve 25 sn bu sorularda geniş pay bırakıyor. Üç çağrı genelleme için yeterli değil; eval süreleri ve token sayılarını kaydedecek.
+  - Reasoning tokenları çıktı bütçesinden yer. Değerlendirmenin 18 çağrısında (düşük effort) reasoning tokenı 15 çağrıda 0, en zor üç soruda 46–105; çıktı en fazla 237 token, üretim en fazla 2,8 sn sürdü. 1000 token ve 25 sn bu sorularda geniş pay bırakıyor.
   - SDK zaman aşımı aşama başınadır (bağlantı, okuma, yazma). Toplam süreyi K28'deki üst sınır keser.
 - **Ne zaman değişir:** Canlı ölçüm 1000 tokenın veya 25 sn'nin yetmediğini gösterirse değer gerekçesiyle değişir. Model değişirse ve yeni model reasoning modeli değilse `reasoning` parametresi kaldırılır.
 
 ### K24 — Modele giden veri: yalnızca JSON veri, sürümlü prompt dosyası
 - **Seçim:**
   - Sistem talimatı ayrı dosyadadır: `app/prompts/answer.txt`. Sürümü `PROMPT_VERSION` (`answer-v1`); dosyanın SHA-256 değeri readiness'ta (`prompt_version`, `prompt_hash`) ve üretim loglarında görünür. Bir test her sürümün hash'ini sabitler; prompt değişince sürüm de değişmek zorundadır. Prompt'ta hiç rakam yoktur (bir test denetler), politika sayıları yalnızca korpusta durur.
-  - Kullanıcı mesajı tek bir JSON nesnesidir: etkin tarih, etkin kapsam, soru ve en fazla 4 bölüm (`id`, `heading_path`, `text`). Eski sürümler zaten sürüm görünümünde elendiği için modele gitmez.
+  - Kullanıcı mesajı tek bir JSON nesnesidir: etkin tarih, etkin kapsam, soru ve getirilen `TOP_K` bölüm (`id`, `heading_path`, `text`). Eski sürümler zaten sürüm görünümünde elendiği için modele gitmez.
 - **Alternatif:** Soruyu ve bölümleri XML benzeri etiketlerle düz metne gömmek; prompt'u kodda sabit metin olarak tutmak; tüm top-k'yı göndermek.
 - **Neden:**
   - JSON string kaçışı sayesinde soru veya belge kendi alanını kapatıp talimat ya da başka bir kaynak gibi görünemez. Düz metin etiketlerinde `</soru>` yazan bir soru bunu yapabilirdi. Test, tırnak ve köşeli parantezle alanı kapatmaya çalışan bir soruyla bunu denetler.
   - Prompt dosyası incelenebilir ve sürümlenebilir; eval sonuçları hangi prompt'la alındığını kaydeder.
-  - 4 bölüm ve 512 tokenlık bölüm/soru sınırı, modele giden bağlamı sınırlar.
+  - `TOP_K` (en fazla 8) ve 512 tokenlık bölüm/soru sınırı, modele giden bağlamı sınırlar. Getirilen ve modele verilen bölümler aynı küme olduğu için retrieval ölçümü modelin gördüğü kanıtı da ölçer; `TOP_K` artırmak gerekli bölümün gelmesini garanti etmez.
 - **Bedel:** Talimatların veri olarak ele alınması modelin uyumuna bağlıdır. Sahte generator testleri yalnızca talimatın doğru yere gittiğini gösterir, canlı modelin enjeksiyona dayanıklı olduğunu göstermez. `TOP_K` 4'ten büyük ayarlanırsa 5. ve sonraki bölümler `retrieved_chunk_ids`'te görünür ama modele gitmez.
-- **Ne zaman değişir:** Bölümler uzarsa veya 4 bölüm yetmezse bağlam bütçesi token sayısıyla ayrıca sınırlanır.
+- **Ne zaman değişir:** Bölümler uzarsa veya 8 bölüm yetmezse bağlam bütçesi token sayısıyla ayrıca sınırlanır.
 
 ### K25 — Model çıktısı reddedilir, düzeltilmez; cevap sunucuda kurulur
 - **Seçim:**
@@ -220,16 +382,64 @@ Her karar notu şu sırayı izler: **Seçim · Alternatif · Neden · Bedel · N
 - **Bedel:** İstemci koptuğunda veya .NET'in süresi dolduğunda Python'daki istek kendi işini bitirir. Model çağrısı ve maliyeti en fazla `LLM_TIMEOUT_SECONDS` kadar sürer. Kopmayı Python'a taşımak, her isteğin yanında bağlantıyı izleyen ayrı bir görev gerektirirdi.
 - **Ne zaman değişir:** Kopan isteklerin model maliyeti ölçülebilir hâle gelirse bağlantı kopmasını izleyen iptal eklenir.
 
+### K29 — Değerlendirme: dış API üzerinden, ayrı paydalar, sınırlı otomatik kontrol
+- **Seçim:**
+  - Runner (`eval/run_eval.py`), .NET'in `POST /api/ask` ucunu bir istemci gibi çağırır; Python fonksiyonlarını doğrudan çağırmaz. Yalnızca Python standart kütüphanesini kullanır.
+  - Her HTTP cevabı, hata ve bağlantı hatası dâhil, önce `actual.jsonl`'a yazılır; kontroller sonra hesaplanır. Hiçbir soru tekrar sorulmaz.
+  - Her kontrolün kendi paydası vardır. Uygulanmayan (`n/a`) ve cevap gelmediği için ölçülemeyen (`not_evaluable`) sorular ayrı sayılır. Tek bir başarı yüzdesi verilmez.
+  - Bilgi kontrolleri, claim metinlerinde aranan birkaç düzenli ifadedir (ör. "30 geçiyor, 14 geçmiyor"). Sürüm beklentisi soruda açıkça yazılır (`expected_versions`).
+  - Alıntı modunda yalnızca cevabı belgelerde olan sorular için `evidence_only` beklenir. Bu mod cevaplanabilirliğe karar vermediği için cevapsız sorularda durum ölçülmez.
+- **Alternatif:** pytest + HTTP istemcisiyle ayrı bir eval projesi; servis fonksiyonlarını doğrudan çağırmak; metin eşitliği; ikinci bir LLM ile puanlama; tek başarı yüzdesi.
+- **Neden:**
+  - .NET doğrulaması, request ID, hata eşleme ve timeout ölçümün içinde kalır.
+  - Ek bağımlılık veya ortam gerekmez; runner Python kurulu her makinede çalışır.
+  - Bir altyapı hatası retrieval veya üretim hatası gibi sayılmaz; "başarısız" ve "ölçülemedi" ayrı görünür.
+  - Düzenli ifadeler ucuzdur ve neyi yakaladıkları okunabilir. Anlamsal doğruluk iddiası taşımazlar.
+- **Bedel:**
+  - Kalıp kontrolleri anlamsal değildir. "Beş iş günü" diye yazan doğru bir cevap `\b5 iş günü` kalıbını kaçırır; kalıp olumsuz bir cümlede geçerse yanlış alarm verir. Doğru bölüme atıf yapan yanlış bir cümle ancak kalıp tutarsa yakalanır.
+  - Dış API yalnızca ilk k bölümü döndürür. İlk k'nın dışındaki sıra için servis logu veya `measure_retrieval.py` gerekir.
+  - Koşu metadata'sı readiness'tan okunur. Sağlayıcı uç noktası (`OPENAI_BASE_URL`) readiness'ta olmadığı için koşu notunda ayrıca yazılır.
+- **Ne zaman değişir:** Soru ve kalıp sayısı bakım yükü olacak kadar büyürse insan etiketli bir değerlendirmeye geçilir.
+
+## Değerlendirme bulguları
+
+İlk koşular 2026-10-04'te, commit `50518bc` üzerinde yapıldı (gerçek çalıştırma zamanı her raporun başında); çalışma ağacında koşu girdileri commit'ten farklı değildi. Her mod bir kez koşuldu. İki koşu arasında yalnızca anahtarın varlığı değişti; corpus fingerprint, prompt, embedding revision, `top_k=4` ve kapalı eşik aynıydı. Üretken koşu OpenRouter üzerinden `openai/gpt-6-luna` ile yapıldı. Sağlayıcı yanıtlarda modeli takma adla bildirdi; OpenRouter'ın public models API'si koşudan hemen sonra kalıcı slug olarak `openai/gpt-6-luna-20260922` gösterdi. Ayrıntılar ve her sorunun beklenen/gerçek çıktısı:
+- [`eval/results/20261004-200050-evidence_only/report.md`](../eval/results/20261004-200050-evidence_only/report.md)
+- [`eval/results/20261004-200118-generative/report.md`](../eval/results/20261004-200118-generative/report.md)
+
+Teslim öncesi temiz kopya denetiminde alıntı modu koşusu bir kez daha, anahtarsız ve commit `78af7e7` üzerinde çalıştırıldı (sonuçları commit edilmedi): 18 sorunun durumu, ilk 4 listesi, sürüm kararları ve aday alıntıları ilk koşuyla birebir aynıydı. Üretken koşu tekrarlanmadı.
+
+Sayılar (üretken koşu): HTTP 18/18; beklenen durum 14/18; beklenen bölümler ilk 4'te 12/15 ve kaynak gösterildi 12/15; sürüm kararı 6/6; kaynak kimliği geçerli 18/18; gereksiz ret yok 14/15; cevapsız soruda iddia yok 2/3; yasak kalıp yok 10/10. Alıntı modu koşusunda ilk 4 listeleri üretken koşuyla birebir aynı çıktı.
+
+Başarısız otomatik kontroller (üretken koşu; liste `checks.json`'dan):
+- Beklenen durum: E12, E15, E16, E18.
+- Beklenen bölüm ilk 4'te / kaynak gösterildi / gerekli kalıp: E15, E16, E18.
+- Gereksiz ret: E15. Cevapsız soruda iddia: E12.
+
+Alıntı modu koşusunda tek başarısız kontrol, aynı üç soruda beklenen bölümün ilk 4'te olmamasıdır (E15, E16, E18).
+
+- Süre ve token: üretim 1,3–2,8 sn; giriş 1.692–1.808, çıktı 46–237 token. Reasoning tokenı 15 çağrıda 0, E15/E16/E18'de 105/83/46. OpenRouter'ın listelediği fiyatla 18 çağrı yaklaşık 0,004 USD (tahmin, fatura değil).
+- Beklenen değerler değiştirilmedi ve bu koşulardan sonra bölümleme veya ayar değiştirilmedi.
+
+Kök neden analizi ve insan incelemesi henüz yapılmadı; her sorunun `human_review` alanı `pending`.
+
 ## Bilinen sınırlar
 
 - **İlk indirme.** İlk başlangıç internet ister: model yaklaşık 470 MB, tokenizer yaklaşık 17 MB olarak `MODEL_CACHE_DIR` altına iner (Docker'da `rag-models` volume'ü). Önbellek dolduktan sonra sabit commit sayesinde model için ağ isteği yapılmaz. Dolu volume'lerle `--network none` başlatılan rag konteyneri hazır oldu. `huggingface_hub` yeni bir konteynerde bir kez (sonra en fazla günde bir) Hub'dan kendi istemci bilgisi için küçük bir liste ister. Bu, kütüphanenin hatasını yuttuğu ve 3 sn ile sınırladığı bir denemedir; ağsız başlatmayı bozmadı. Sıfırdan internetsiz kurulum desteklenmez.
 - **Embedding revision.** `EMBEDDING_REVISION` yalnızca tam commit hash'i kabul eder; boşsa sabitlenmiş commit kullanılır. `EMBEDDING_MODEL` revision'sız değiştirilirse aynı commit o repoda bulunmaz ve başlangıç hata verir. Başka bir revision için model testleri ve `measure_retrieval.py` yeniden çalıştırılmalıdır.
 - **Soru uzunluğu.** Sorgu da 512 token sınırına tabidir. Sınırı aşan soru kesilmez, 400 `invalid_request` olur. 2.000 karakterlik sınır bunu garanti etmez: normal Türkçe metinde 2.000 karakter yaklaşık 470 token tutarken 600 emoji sınırı aşıyor (gerçek tokenizer ile ölçüldü).
 - **Skorların taşınabilirliği.** Skorlar farklı CPU mimarilerinde son basamaklarda (yaklaşık 1e-6) farklı çıkabilir. Eşit skorda `chunk_id` sıralaması yalnızca birebir eşit skorlar için devreye girer.
-- **Küçük ölçüm.** Eşik kararı 4 geliştirme sorusuna dayanır; genellenebilir bir sonuç iddia edilmez.
-- **Tarihsel soruda zorunlu bölüm ilk 4'ün dışında kaldı.** `as_of=2026-06-01` ile "1 Haziran 2026'da iade süresi neydi?" sorusunda gerçek modelle `D03#sure` 5. sırada çıktı (0,8147). İlk 4: `D03#uygulama` 0,8241, `D05#bedel` 0,8230, `D05#kullanim` 0,8201, `D03#tarihler` 0,8187. Açıklayıcı bölümlerin zorunlu bölümü dışarı itme riski (K17) burada gerçekleşti. Bölümleme bu soruya göre ayarlanmadı; olası düzeltme önce geliştirme sorularında denenip ölçülecek.
-- **Canlı üretim yalnızca smoke düzeyinde doğrulandı.** OpenRouter üzerinden üç gerçek çağrı yapıldı (biri .NET üzerinden uçtan uca, ikisi `smoke_generation.py` ile): iki cevaplanabilir soru doğru bölüme atıfla `answered`, bir cevapsız soru `insufficient_evidence` + `not_in_documents` döndü; yapılandırılmış çıktı OpenRouter'ın Responses API'si üzerinden çalıştı. Daha önceki iki deneme, OpenRouter'da etkin olan sıfır veri saklama (ZDR) kısıtı OpenAI uç noktasını dışladığı için 404 aldı; servis bunu doğru biçimde 503 `provider_unavailable` olarak döndü. Bu bir değerlendirme değildir; kalite iddiası eval'a kalır.
+- **Küçük ölçüm.** Eşik kararı 4 geliştirme sorusuna dayanır. 18 soruluk değerlendirme de aynı kurgu korpus için yazılmış küçük bir Türkçe regresyon setidir; genellenebilir bir doğruluk oranı vermez.
+- **Beklenen bölüm her zaman ilk 4'te değil.** Değerlendirmede 15 cevaplanabilir sorunun 3'ünde (E15, E16, E18) beklenen `sure` bölümü ilk 4'te yoktu. K17'de öngörülen risk bu; kök neden incelemesi ve olası bölümleme düzeltmesi bekliyor. Düzeltme yapılırsa önce geliştirme sorularıyla ölçülür.
+- **Canlı üretim tek bir 18 soruluk koşuyla değerlendirildi.** Her üretken istek ücretli bir model çağrısıdır; bu koşuda üretim 1,3–2,8 sn sürdü. Model çıktısı deterministik değildir; aynı koşu tekrarlansa bazı durumlar değişebilir ve tek koşu bunun ölçüsünü vermez. Sonuçlara insan incelemesi henüz yapılmadı (`pending`). Eval'dan önceki deneme çağrılarından ikisi, OpenRouter'da etkin olan sıfır veri saklama (ZDR) kısıtı OpenAI uç noktasını dışladığı için 404 aldı; servis bunu doğru biçimde 503 `provider_unavailable` olarak döndü, "belgede yok" saymadı.
 - **Model sürümü logda takma adla görünür.** OpenRouter yanıtta modeli `openai/gpt-6-luna` olarak bildiriyor, tarihli slug'ı değil. Hangi snapshot'ın kullanıldığı ancak OpenRouter'ın public models API'sinden (o gün `openai/gpt-6-luna-20260922`) ayrıca kaydedilebilir.
 - **Enjeksiyon dayanıklılığı kanıtlanmadı.** Testler, talimat içeren soru ve belgenin modele yalnızca veri olarak gittiğini ve sunucu doğrulamasının sürdüğünü gösterir; canlı modelin talimata uyup uymadığını göstermez.
 - **Kaynak doğrulaması anlamsal değildir** (K25). Doğru bölüme atıf yapan yanlış bir süre geçebilir; bunu yalnızca eval ve insan incelemesi yakalar.
+- **Retrieval kaçırması "belgede yok" gibi görünür.** İlk k'ya girmeyen bir bölümü model hiç görmez; o konuyu eksik konu olarak yazar. Sunucunun cümlesi "bu istekteki belgelerle yanıtlanamayan konular" der; yine de okuyan kişi retrieval hatasını gerçek bilgi yokluğundan ayıramaz. Teşhis için `retrieved_chunk_ids` ve logdaki skorlar gerekir.
+- **Belgeler arası anlamsal denetim yok.** Loader yalnızca yapıyı ve metadata tutarlılığını denetler. Belge gövdesinde yanlış yazılmış bir kuralı (ör. D04'te "30" yerine "40") veya metadata ile ilişkilendirilmemiş iki belge arasındaki çelişkiyi yakalamaz; gövdedeki tarih ifadeleri de metadata ile karşılaştırılmaz.
+- **Belgeyi yerinde düzenlemek sürümü değiştirmez.** Bir provada `D04#sure` metni yerinde değiştirildi: fingerprint değişti, indeks yeniden üretildi, yeni alıntı döndü; ama cevaptaki `version` yine `2.0` idi. Hangi metnin kullanıldığını o zaman yalnızca fingerprint (readiness, eval metadata) gösterir. Politika değişikliği yeni bir sürüm ve tarihlerle yapılmalıdır; yerinde düzenleme yazım düzeltmesi içindir.
+- **Tarihsel soru `as_of` ister.** Serbest metinden tarih okunmaz. Soru başka bir tarihi soruyor ama istek o tarihe ayarlı değilse modelin `as_of_required` ile bunu söylemesi beklenir; bu davranış prompt'a bağlıdır ve canlı olarak ayrıca ölçülmedi (E16 doğru `as_of` ile soruldu).
+- **Üretim için eksik olanlar.** Kimlik doğrulama ve belge bazlı yetkilendirme yoktur; kapsam filtresi yetkilendirme değildir. Tenant izolasyonu, TLS ve ağ kontrolleri, saklama ve silme politikası, sağlayıcı ve veri aktarımı değerlendirmesi, güvenlik incelemesi ve yük/ölçek testi yapılmadı.
+- **ASCII olmayan HTTP başlığı.** Kestrel, ASCII olmayan bir başlık değerini (ör. `X-Request-ID: accept.çok`) uygulama koduna ulaşmadan gövdesiz 400 ile reddeder; bu durumda hata sözleşmesi ve request ID dönmez (temiz kopya denetiminde görüldü).
+- **rag durduktan sonraki ilk çağrı.** Temiz kopya provasında rag konteyneri korpus hatasıyla durduktan sonra ilk `/health/ready` çağrısı, `rag` adının çözümlenmesi 3 sn'yi aştığı için 504 `upstream_timeout` döndü; sonraki çağrılar hemen 503 `upstream_unavailable` döndü. "Durdu" ile "yavaş" ayrımı `docker compose ps` ve loglarla yapılır.
 - **İptal Python'a ulaşmaz.** .NET'in süresi dolduğunda veya istemci koptuğunda .NET'ten Python'a giden çağrı iptal edilir, ama Python'daki istek kendi işini bitirene kadar çalışır. Üretimde bu, model çağrısının (ve maliyetinin) en fazla `LLM_TIMEOUT_SECONDS` sürmesi demektir (K28).
