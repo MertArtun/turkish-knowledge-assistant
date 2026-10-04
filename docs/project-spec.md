@@ -270,14 +270,46 @@ Soru, cevap, belge metni, model çıktısının metni, sağlayıcının hata mes
 
 İsimler `.env.example`, kod ve README'de birebir aynıdır. Python: `APP_MODE` (`evidence_only` varsayılan | `generative`), `OPENAI_API_KEY` (baştaki/sondaki boşluk kırpılır), `OPENAI_BASE_URL` (http/https; boşsa `https://api.openai.com/v1`; OpenRouter: `https://openrouter.ai/api/v1`), `OPENAI_MODEL` (uç noktanın beklediği model ID'si; boşsa OpenAI'ın `gpt-6-luna`'sı, OpenRouter'da `openai/gpt-6-luna`; istek bir reasoning effort gönderdiği için reasoning modeli olmalıdır), `EMBEDDING_MODEL`, `EMBEDDING_REVISION` (tam 40 haneli commit hash'i; boşsa `614241f622f53c4eeff9890bdc4f31cfecc418b3`; kısa hash veya dal adı reddedilir), `KNOWLEDGE_DIR`, `INDEX_PATH`, `MODEL_CACHE_DIR`, `TOP_K` (1–20, varsayılan 4), `MIN_RETRIEVAL_SCORE` (boş = kapalı; −1..1), `LLM_TIMEOUT_SECONDS` (0–120, varsayılan 25). .NET: `RAG_SERVICE_URL` (mutlak http/https adresi; boşsa `http://rag:8000`; yol kısmı kullanılmaz) ve `RAG_TIMEOUT_SECONDS` (0 < x ≤ 300, ondalık olabilir; boşsa 45). .NET `.env` dosyasını okumaz; yerelde bu değişkenler kabuktan verilir. Readiness çağrısının 3 sn timeout'u sabittir. Docker Compose'da Python servisine yalnızca yukarıdaki Python değişkenleri (üç yol hariç) kabuktan veya `.env`'den aktarılır. Yollar imajda sabittir: `KNOWLEDGE_DIR=/knowledge` (salt okunur bind mount), `INDEX_PATH=/var/lib/rag/index/index.sqlite3` (`rag-index` volume'ü), `MODEL_CACHE_DIR=/var/lib/rag/models` (`rag-models` volume'ü). .NET servisi `RAG_SERVICE_URL=http://rag:8000` (sabit) ve `RAG_TIMEOUT_SECONDS` alır; anahtarı almaz. Geçersiz değer veya `APP_MODE=generative` + boş anahtar başlangıçta açık hata verir; hata mesajı değişken adını söyler, değerini asla yazmaz. Boş değer iki serviste de "verilmemiş" sayılır.
 
-## 7. Değerlendirme beklentileri
+## 7. Değerlendirme
 
-- `eval/questions.jsonl`: 18 soru (E01–E18); her kayıtta `id`, `category`, `request`, `expected_status`, `required_facts`, `forbidden_facts`, `expected_source_ids`, `rubric`. Varsayılan kapsam TR/B2B/MH-10, `as_of=2026-10-04` (E16: `2026-06-01`). Ayrıca 4 geliştirme sorusu (`eval/dev_questions.jsonl`: `id`, `category`, `request`, `expected_source_ids`); eşik/bölümleme kararları önce onlarda denenir (`src/rag_service/measure_retrieval.py`).
-- Runner dış .NET API'sini HTTP ile çağırır (timeout'lu); hatalı HTTP cevapları da gerçek çıktı olarak kaydedilir.
-- Çıktı: `eval/results/<run_id>/actual.jsonl`, makinece okunur kontroller, Markdown karşılaştırma raporu. Run metadata: gerçek çalıştırma zamanı, commit SHA + dirty bayrağı, readiness'tan alınan `run_metadata`, soru sayısı.
-- Ölçümler payda ve sayılarla: beklenen bölüm top-k'da mı, çok kaynaklı sorularda tüm gerekli bölümler, doğru sürüm, kaynak ID geçerliliği, beklenen durum, cevaplanabilir sorularda gereksiz ret, cevapsız sorularda uydurma. Tek bir başarı yüzdesi verilmez; metin eşitliği anlamsal doğruluk sayılmaz.
-- İnsan inceleme sütunu `pending` başlar ve yalnızca gerçekten incelenen sorularda değişir. Hata kök nedeni: retrieval, versioning, generation, validation, infrastructure veya expected veri hatası.
-- Anahtar/ağ/kota yoksa generation eval'ı `not_run`/`blocked` raporlanır. Bu kapsamda smoke + eval için toplam en fazla 25 generation çağrısı.
+Uygulama: `eval/run_eval.py` (yalnızca Python standart kütüphanesi; servis kodu eval dosyalarını hiçbir zaman içe aktarmaz), testleri `eval/test_run_eval.py`.
+
+**Sorular.** `eval/questions.jsonl`: 18 soru (E01–E18), her satır bir JSON nesnesi:
+- `id`, `category` (`normal`, `version_conflict`, `unanswerable`, `paraphrase`, `partial`, `historical_version`, `false_premise`, `multi_source`), `rubric` (kısa Türkçe ölçüt).
+- `request`: `question`, `as_of` (E16 `2026-06-01`, diğerleri `2026-10-04`) ve her soruda açıkça `scope` TR/B2B/MH-10. `mode` yazılmaz; runner koşunun modunu ekler.
+- `expected_status`: üretken moddaki beklenen durum.
+- `required_facts`, `forbidden_facts`: `{fact, pattern}` listeleri. `fact` insan incelemesi içindir. `pattern` doluysa claim metinlerinde büyük/küçük harf duyarsız aranan düzenli ifadedir; `null` ise yalnızca insan inceler.
+- `expected_source_ids`: cevabın dayanması gereken bölümler; cevapsız sorularda `[]`.
+- `expected_versions`: `{procedure_id: {selected, excluded: {doc_id: reason}}}`; yalnızca sürüm kararının ölçüldüğü sorularda dolu.
+
+Ayrıca 4 geliştirme sorusu `eval/dev_questions.jsonl` içindedir (`id`, `category`, `request`, `expected_source_ids`); eşik ve bölümleme kararları önce onlarda denenir (`src/rag_service/measure_retrieval.py`).
+
+**Koşu.**
+- Runner .NET'in `POST /api/ask` ucunu çağırır. İstek başına timeout 60 sn'dir, .NET'in 45 sn'sinden uzun; böylece yavaş bir cevap istemci timeout'u değil API'nin kendi 504'ü olarak kaydedilir. Her soruya `X-Request-ID: eval.<run_id>.<id>` gönderilir; servis loglarındaki satırlar bu ID ile bulunur.
+- HTTP hataları ve bağlantı hataları da gerçek çıktı olarak kaydedilir; hiçbir soru tekrar denenmez.
+- Koşudan önce `/health/ready` okunur. Servis hazır değilse koşu başlamaz. `generative` koşu, `generation_configured=false` ise başlamaz (`blocked`; model çağrısı yapılmaz). Readiness koşu sonunda yeniden okunur ve değişip değişmediği kaydedilir.
+- Çıktı `eval/results/<run_id>/`: `actual.jsonl` (her HTTP alışverişi olduğu gibi), `checks.json` (metadata, soru bazında kontroller, sayılar), `report.md` (beklenen ve gerçek karşılaştırması).
+- Metadata: gerçek başlangıç ve bitiş zamanı; commit SHA ve dirty bayrağı (`src`, `data`, `compose.yaml` veya eval dosyaları commit'ten farklı mı); readiness'taki `run_metadata` (corpus fingerprint, embedding modeli ve revision'ı, LLM modeli, prompt sürümü ve hash'i, `top_k`, eşik); mod; soru sayısı. İstekteki `as_of` değerlendirilen iş tarihidir, gerçek çalıştırma tarihi değildir.
+
+**Kontroller.** Her kontrol her soru için `pass`, `fail`, `n/a` (bu soruya ve moda uygulanmaz) veya `not_evaluable` (uygulanır ama API kullanılabilir bir cevap dönmedi) olur. Rapor her kontrol için geçen/uygulanan sayısını, başarısız ve değerlendirilemeyen soruların ID'lerini verir; tek bir başarı yüzdesi verilmez.
+
+| Kontrol | Uygulandığı sorular | Geçme koşulu |
+|---|---|---|
+| `http` | hepsi | HTTP 200, sözleşmeye uygun gövde, istekteki request ID |
+| `status` | `generative`: hepsi. `evidence_only`: beklenen bölümü olanlar | Durum `expected_status`'a eşit. Alıntı modunda beklenen durum `evidence_only`'dir; alıntı modu cevaplanabilirliğe karar vermediği için cevapsız sorularda bu kontrol uygulanmaz |
+| `retrieval` | beklenen bölümü olanlar | Beklenen bölümlerin tamamı `retrieved_chunk_ids` içinde |
+| `citation` | `generative` ve beklenen bölümü olanlar | Beklenen bölümlerin tamamı `sources` içinde |
+| `version` | `expected_versions` dolu olanlar | Prosedür için karar var; seçilen belge ve dışlama nedenleri beklenenle aynı |
+| `source_validity` | hepsi | Her kaynak/aday getirilen bölümlerden ve seçili sürümden; `chunk_id` = `doc_id#section_id`; `quote` belge dosyasında birebir geçiyor; claim atıfları ile `sources` aynı küme |
+| `no_unnecessary_refusal` | `expected_status` `answered` veya `partial` | Durum `insufficient_evidence` değil |
+| `no_wrong_answer` | `expected_status` `insufficient_evidence` | Claim yok |
+| `required_facts`, `forbidden_facts` | `generative` ve en az bir `pattern`'i olan sorular | Gerekli kalıpların tamamı claim'lerde var / yasak kalıpların hiçbiri yok |
+
+Birden fazla beklenen bölümü olan sorular (E18) için `retrieval` ve `citation` ayrıca raporlanır. Kalıp kontrolleri yalnızca claim metinlerinde arar, çünkü eksik konu cümlesi soruyu tekrar edebilir. Kalıp eşleşmesi anlamsal doğruluk değildir; doğru bölüme atıf yapan yanlış bir cümle yalnızca kalıp tutarsa yakalanır.
+
+**İnceleme.** İnsan inceleme sütunu her soruda `pending` başlar ve yalnızca gerçekten incelenen sorularda değişir. Başarısız her kontrol için kök neden sınıfı: retrieval, versioning, generation, validation, infrastructure veya expected veri hatası. Test geçsin diye beklenen değer değiştirilmez; gerçek bir expected hatası düzeltilirse nedeni yazılır.
+
+**Bütçe.** Anahtar, ağ veya kota yoksa üretken eval `not_run`/`blocked` raporlanır. Bu kapsamda smoke ve eval için toplam en fazla 25 generation çağrısı yapılır; 18 soruluk üretken koşu bir kez çalıştırılır.
 
 ## 8. Kabul kontrol listesi
 

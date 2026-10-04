@@ -132,6 +132,23 @@ dotnet test                            # Python servisi gerekmez; sahte HTTP han
 dotnet format --verify-no-changes
 ```
 
+## Değerlendirme
+
+18 soruluk küçük, görülebilir bir regresyon setidir (`eval/questions.jsonl`): normal, sürüm çelişkisi, cevapsız, kısmi, tarihsel sürüm, yanlış ön kabul ve çok kaynaklı sorular. Genellenebilir bir benchmark değildir. Runner (`eval/run_eval.py`) dış .NET API'sini HTTP ile çağırır ve yalnızca Python 3.10+ standart kütüphanesini kullanır. Kontrollerin tanımı: [`docs/project-spec.md`](docs/project-spec.md) §7.
+
+Repo kökünden:
+
+```bash
+python3 -m unittest discover -s eval -v                  # runner'ın kendi testleri; stack gerekmez
+COMPOSE_BAKE=false docker compose up --build -d --wait
+python3 eval/run_eval.py --mode evidence_only            # model çağrısı yok
+python3 eval/run_eval.py --mode generative               # anahtar gerekir; soru başına bir ücretli model çağrısı
+# İsteğe bağlı: koşunun servis log satırları (skorlar, süreler, token sayıları)
+docker compose logs --no-log-prefix rag | grep '"eval\.<run_id>\.' > eval/results/<run_id>/rag-log.jsonl
+```
+
+Her koşu `eval/results/<run_id>/` altına `actual.jsonl` (her HTTP cevabı, hatalar dâhil), `checks.json` (koşu bilgileri ve kontroller) ve `report.md` (beklenen ve gerçek karşılaştırması) yazar. `generative` koşu, stack'te anahtar yoksa hiç istek göndermeden durur. `docker compose logs` yalnızca çalışan konteynerlerin logunu gösterir; log satırları konteyner yeniden oluşturulmadan önce alınmalıdır.
+
 ## Belgeler
 
 - [`docs/project-spec.md`](docs/project-spec.md) — gereksinimler, korpus, sürüm kuralları, indeks ve arama, API ve hata sözleşmesi, kabul listesi.
