@@ -13,7 +13,8 @@ def test_defaults_start_in_evidence_only_mode_without_key():
 
     assert settings.app_mode == "evidence_only"
     assert settings.openai_api_key is None
-    assert settings.generation_configured is False
+    assert str(settings.openai_base_url) == "https://api.openai.com/v1"
+    assert settings.openai_model == "gpt-6-luna"
     assert settings.top_k == 4
     assert settings.min_retrieval_score is None
     assert settings.llm_timeout_seconds == 25
@@ -32,7 +33,9 @@ def test_environment_values_are_parsed():
         {
             "APP_MODE": "generative",
             "OPENAI_API_KEY": FAKE_KEY,
+            "OPENAI_BASE_URL": "https://openrouter.ai/api/v1",
             "OPENAI_MODEL": "some-model",
+            "EMBEDDING_REVISION": "0123456789abcdef0123456789abcdef01234567",
             "TOP_K": "6",
             "MIN_RETRIEVAL_SCORE": "0.35",
             "LLM_TIMEOUT_SECONDS": "10.5",
@@ -41,8 +44,10 @@ def test_environment_values_are_parsed():
     )
 
     assert settings.app_mode == "generative"
-    assert settings.generation_configured is True
+    assert settings.openai_api_key.get_secret_value() == FAKE_KEY
+    assert settings.openai_base_url.host == "openrouter.ai"
     assert settings.openai_model == "some-model"
+    assert settings.embedding_revision == "0123456789abcdef0123456789abcdef01234567"
     assert settings.top_k == 6
     assert settings.min_retrieval_score == 0.35
     assert settings.llm_timeout_seconds == 10.5
@@ -58,6 +63,13 @@ def test_embedding_revision_must_be_a_full_commit_hash(value):
     # A branch name or short hash would let the model change underneath an unchanged config.
     with pytest.raises(ValidationError, match="embedding_revision"):
         Settings(embedding_revision=value)
+
+
+def test_surrounding_whitespace_is_stripped_from_the_key():
+    # A stray space copied into .env would otherwise break authentication.
+    settings = load_settings({"OPENAI_API_KEY": f"  {FAKE_KEY} \n"})
+
+    assert settings.openai_api_key.get_secret_value() == FAKE_KEY
 
 
 def test_generative_mode_without_key_is_a_config_error():
@@ -79,6 +91,9 @@ def test_unknown_app_mode_is_rejected():
         ("MIN_RETRIEVAL_SCORE", "1.5"),
         ("LLM_TIMEOUT_SECONDS", "0"),
         ("LLM_TIMEOUT_SECONDS", "3600"),
+        ("OPENAI_BASE_URL", "openrouter.ai/api/v1"),
+        ("OPENAI_BASE_URL", "ftp://openrouter.ai/api/v1"),
+        ("EMBEDDING_REVISION", "main"),
     ],
 )
 def test_out_of_range_values_are_rejected_with_the_variable_name(name, value):

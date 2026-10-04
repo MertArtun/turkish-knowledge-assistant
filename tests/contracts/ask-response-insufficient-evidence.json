@@ -8,7 +8,7 @@
     "customer_type": "B2B",
     "product": "MH-10"
   },
-  "answer": "Onaylı belgelerde bu soruyu yanıtlayacak bilgi bulunamadı.",
+  "answer": "Onaylı belgelerde bu soruyu yanıtlayacak bilgi bulunamadı. Bu istekteki belgelerle yanıtlanamayan konular: MH-10 garanti süresi.",
   "claims": [],
   "sources": [],
   "evidence": [],

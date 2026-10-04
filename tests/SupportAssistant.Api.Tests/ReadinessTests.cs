@@ -83,6 +83,7 @@ public class ReadinessTests
         body["checks"] = new JsonObject { ["corpus_index"] = true, ["embedding_model"] = true };
         body["run_metadata"]!["embedding_revision"] = "test-revision";
         body["run_metadata"]!["corpus_fingerprint"] = "test-fingerprint";
+        body["run_metadata"]!["prompt_version"] = "test-prompt-version";
         body["run_metadata"]!["prompt_hash"] = "test-prompt-hash";
         body["run_metadata"]!["min_retrieval_score"] = 0.5;
         return body.ToJsonString();

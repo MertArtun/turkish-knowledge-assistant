@@ -33,6 +33,9 @@ SAFE_REQUEST_ID = re.compile(r"[A-Za-z0-9._-]{1,64}")
 ERROR_STATUS: dict[ErrorCode, int] = {
     "invalid_request": 400,
     "generation_not_configured": 503,
+    "provider_unavailable": 503,
+    "generation_timeout": 504,
+    "invalid_generation_output": 502,
     "internal_error": 500,
 }
 INVALID_REQUEST_MESSAGE = (
@@ -54,12 +57,15 @@ def create_app(assistant: Assistant | None = None) -> FastAPI:
         checks=ReadinessChecks(corpus_index=True, embedding_model=True),
         run_metadata=RunMetadata(
             app_mode=settings.app_mode,
-            generation_configured=settings.generation_configured,
+            # A generator exists only with a key; readiness never calls the paid model, so this
+            # does not prove the key, quota or model access works.
+            generation_configured=assistant.generator is not None,
             llm_model=settings.openai_model,
             embedding_model=settings.embedding_model,
             embedding_revision=settings.embedding_revision,
             corpus_fingerprint=assistant.index.fingerprint,
-            prompt_hash=None,
+            prompt_version=assistant.prompt.version,
+            prompt_hash=assistant.prompt.sha256,
             top_k=settings.top_k,
             min_retrieval_score=settings.min_retrieval_score,
         ),

@@ -119,13 +119,57 @@ Her karar notu şu sırayı izler: **Seçim · Alternatif · Neden · Bedel · N
   - `anyio` doğrudan bağımlılık olarak yazıldı; FastAPI onu zaten getiriyordu.
 - **Ne zaman değişir:** Yük ölçümü tek çağrılık sıranın darboğaz olduğunu gösterirse sınır artırılır.
 
+### K23 — Üretim: tek adaptör, Responses API, katı şema, OpenRouter üzerinden OpenAI
+- **Seçim:**
+  - `app/generation.py` içinde küçük bir `Generator` arayüzü (testlerde sahte generator için) ve tek gerçek uygulama: `OpenAIGenerator`. Resmî `openai` Python SDK'sı (kilitteki 3.24.0), async istemci, `responses.parse` ile Pydantic modelinden üretilen katı JSON şeması.
+  - `store=false`, `max_output_tokens=1000`, istemci zaman aşımı `LLM_TIMEOUT_SECONDS` (25 sn), `max_retries=0`.
+  - Model `gpt-6-luna`. Değerlendirme yapılandırması OpenRouter üzerinden `openai/gpt-6-luna` (OpenRouter'ın kalıcı slug'ı `openai/gpt-6-luna-20260922`). Başlangıç planındaki `gpt-4.1-mini-2025-04-14`'ün yerini aldı. Bu bir reasoning modeli, bu yüzden istek `reasoning.effort=low` gönderir ve `temperature` göndermez; model bu parametreyi kabul etmiyor.
+  - `OPENAI_BASE_URL` OpenRouter ise istek `provider: {only: ["openai"], allow_fallbacks: false, require_parameters: true}` taşır. Bu alan api.openai.com'a gönderilmez.
+- **Alternatif:** Chat Completions; serbest metin cevap + sonradan ayrıştırma; birden çok sağlayıcı adaptörü; OpenRouter'ın modeli başka bir sağlayıcıda (Azure, Bedrock) çalıştırmasına izin vermek; SDK'nın varsayılan retry'ı (2 deneme).
+- **Neden:**
+  - Katı şema, çıktının biçimini sağlayıcı tarafında sınırlar; sunucu yine de her kuralı kendisi denetler (K25).
+  - Model, OpenAI'ın model sayfasında Responses API ve yapılandırılmış çıktı desteğiyle listeleniyor. OpenRouter'ın public models API'si de OpenAI uç noktası için `structured_outputs`, `reasoning` ve `reasoning_effort` parametrelerini listeliyor.
+  - Yönlendirme sabitlenmezse aynı model ID'si, sessizce başka bir altyapıya veya parametreyi yok sayan bir sağlayıcıya gidebilir.
+  - Retry, 25 sn'lik bütçeyi ve maliyeti katlar; .NET'in 45 sn'lik üst süresi de aşılabilir.
+- **Bedel:**
+  - OpenRouter ek bir aracıdır ve kendi veri politikası vardır. `store=false`, OpenRouter'ın veya OpenAI'ın kendi saklama politikalarını ortadan kaldırmaz.
+  - OpenAI'ın model sayfasında tarihli bir snapshot yok (`gpt-6-luna`). OpenRouter'da `openai/gpt-6-luna` takma adı ileride başka bir snapshot'a geçebilir. Sağlayıcının bildirdiği model her üretimin log satırına yazılır.
+  - Reasoning tokenları çıktı bütçesinden yer. İlk üç canlı çağrıda (düşük effort) reasoning tokenı 0, çıktı 50–74 token, süre 1,3–2,8 sn oldu; 1000 token ve 25 sn bu sorularda geniş pay bırakıyor. Üç çağrı genelleme için yeterli değil; eval süreleri ve token sayılarını kaydedecek.
+  - SDK zaman aşımı aşama başınadır (bağlantı, okuma, yazma); toplam süre bunu biraz aşabilir. Dış sınır .NET'in 45 sn'sidir.
+- **Ne zaman değişir:** Canlı ölçüm 1000 tokenın veya 25 sn'nin yetmediğini gösterirse değer gerekçesiyle değişir. Model değişirse ve yeni model reasoning modeli değilse `reasoning` parametresi kaldırılır.
+
+### K24 — Modele giden veri: yalnızca JSON veri, sürümlü prompt dosyası
+- **Seçim:**
+  - Sistem talimatı ayrı dosyadadır: `app/prompts/answer.txt`. Sürümü `PROMPT_VERSION` (`answer-v1`); dosyanın SHA-256 değeri readiness'ta (`prompt_version`, `prompt_hash`) ve üretim loglarında görünür. Bir test her sürümün hash'ini sabitler; prompt değişince sürüm de değişmek zorundadır. Prompt'ta hiç rakam yoktur (bir test denetler), politika sayıları yalnızca korpusta durur.
+  - Kullanıcı mesajı tek bir JSON nesnesidir: etkin tarih, etkin kapsam, soru ve en fazla 4 bölüm (`id`, `heading_path`, `text`). Eski sürümler zaten sürüm görünümünde elendiği için modele gitmez.
+- **Alternatif:** Soruyu ve bölümleri XML benzeri etiketlerle düz metne gömmek; prompt'u kodda sabit metin olarak tutmak; tüm top-k'yı göndermek.
+- **Neden:**
+  - JSON string kaçışı sayesinde soru veya belge kendi alanını kapatıp talimat ya da başka bir kaynak gibi görünemez. Düz metin etiketlerinde `</soru>` yazan bir soru bunu yapabilirdi. Test, tırnak ve köşeli parantezle alanı kapatmaya çalışan bir soruyla bunu denetler.
+  - Prompt dosyası incelenebilir ve sürümlenebilir; eval sonuçları hangi prompt'la alındığını kaydeder.
+  - 4 bölüm ve 512 tokenlık bölüm/soru sınırı, modele giden bağlamı sınırlar.
+- **Bedel:** Talimatların veri olarak ele alınması modelin uyumuna bağlıdır. Sahte generator testleri yalnızca talimatın doğru yere gittiğini gösterir, canlı modelin enjeksiyona dayanıklı olduğunu göstermez. `TOP_K` 4'ten büyük ayarlanırsa 5. ve sonraki bölümler `retrieved_chunk_ids`'te görünür ama modele gitmez.
+- **Ne zaman değişir:** Bölümler uzarsa veya 4 bölüm yetmezse bağlam bütçesi token sayısıyla ayrıca sınırlanır.
+
+### K25 — Model çıktısı reddedilir, düzeltilmez; cevap sunucuda kurulur
+- **Seçim:**
+  - `validate_answer` model çıktısındaki her ihlali toplar ve 502 `invalid_generation_output` döner: boş veya kaynaksız claim, bu istekte verilmemiş kaynak ID'si (korpusta olsa bile), boş eksik konu, durumla çelişen claim/`missing_topics`/`reason_code`.
+  - Cevap metnini sunucu kurar: claim metinleri, `insufficient_evidence` için `reason_code`'un standart açıklaması ve eksik konular için standart bir cümle. Kaynak başlığı, sürüm, tarihler ve birebir alıntı korpustan eklenir.
+  - Sağlayıcı hataları (bağlantı, HTTP hatası, zaman aşımı, ret, kesilmiş çıktı) ayrı kodlarla hata olur; hiçbiri "belgede bilgi yok" sayılmaz ve alıntı moduna düşülmez.
+- **Alternatif:** Geçersiz ID'leri atıp kalan claim'lerle devam etmek; modelden ayrıca serbest bir cevap metni almak; ikinci bir LLM ile anlamsal kontrol (LLM-as-judge).
+- **Neden:** Sessizce temizlenen bir cevap, doğrulanmamış bir modeli doğrulanmış gibi gösterir. Hata, eval'da "generation" veya "validation" kök nedeni olarak görünür. Atıfsız ikinci bir cevap alanı, doğrulamanın dışında kalan metin yayımlamak demektir.
+- **Bedel:** Kaynak ID doğrulaması anlamsal doğruluk garantisi değildir: verilen bir bölüme atıf yapan yanlış bir claim (ör. "60 gün") geçer. Bu bilinçli olarak bir testle görünür tutuldu. Katı kurallar, canlı modelin küçük biçim hatalarında da 502 doğurur.
+- **Ne zaman değişir:** Eval, belirli bir kuralın doğru cevapları sistematik olarak reddettiğini gösterirse kural veya prompt, ölçülerek değişir.
+
 ## Bilinen sınırlar
 
 - **İlk indirme.** İlk başlangıç internet ister: model yaklaşık 470 MB, tokenizer yaklaşık 17 MB olarak `MODEL_CACHE_DIR` altına iner. Önbellek dolduktan sonra sabit commit sayesinde ağ isteği yapılmaz. Sıfırdan internetsiz kurulum desteklenmez.
-- **Revision kodda sabit.** Embedding revision'ı `app/settings.py` içinde tam commit hash'i olarak sabittir; ortam değişkeniyle değiştirilemez. `EMBEDDING_MODEL` değiştirilirse aynı commit o repoda bulunmaz ve başlangıç hata verir.
+- **Embedding revision.** `EMBEDDING_REVISION` yalnızca tam commit hash'i kabul eder; boşsa sabitlenmiş commit kullanılır. `EMBEDDING_MODEL` revision'sız değiştirilirse aynı commit o repoda bulunmaz ve başlangıç hata verir. Başka bir revision için model testleri ve `measure_retrieval.py` yeniden çalıştırılmalıdır.
 - **Soru uzunluğu.** Sorgu da 512 token sınırına tabidir. Sınırı aşan soru kesilmez, 400 `invalid_request` olur. 2.000 karakterlik sınır bunu garanti etmez: normal Türkçe metinde 2.000 karakter yaklaşık 470 token tutarken 600 emoji sınırı aşıyor (gerçek tokenizer ile ölçüldü).
 - **Skorların taşınabilirliği.** Skorlar farklı CPU mimarilerinde son basamaklarda (yaklaşık 1e-6) farklı çıkabilir. Eşit skorda `chunk_id` sıralaması yalnızca birebir eşit skorlar için devreye girer.
 - **Küçük ölçüm.** Eşik kararı 4 geliştirme sorusuna dayanır; genellenebilir bir sonuç iddia edilmez.
 - **Tarihsel soruda zorunlu bölüm ilk 4'ün dışında kaldı.** `as_of=2026-06-01` ile "1 Haziran 2026'da iade süresi neydi?" sorusunda gerçek modelle `D03#sure` 5. sırada çıktı (0,8147). İlk 4: `D03#uygulama` 0,8241, `D05#bedel` 0,8230, `D05#kullanim` 0,8201, `D03#tarihler` 0,8187. Açıklayıcı bölümlerin zorunlu bölümü dışarı itme riski (K17) burada gerçekleşti. Bölümleme bu soruya göre ayarlanmadı; olası düzeltme önce geliştirme sorularında denenip ölçülecek.
-- **Üretim yolu henüz yok.** `generative` istek her durumda 503 `generation_not_configured` döner. Readiness'taki `generation_configured` yalnızca anahtarın tanımlı olduğunu gösterir.
-- **İptal Python'a ulaşmaz.** .NET'in süresi dolduğunda veya istemci koptuğunda .NET'ten Python'a giden çağrı iptal edilir, ama Python'daki istek kendi işini bitirene kadar çalışır. Alıntı modunda bu birkaç milisaniyedir.
+- **Canlı üretim yalnızca smoke düzeyinde doğrulandı.** OpenRouter üzerinden üç gerçek çağrı yapıldı (biri .NET üzerinden uçtan uca, ikisi `smoke_generation.py` ile): iki cevaplanabilir soru doğru bölüme atıfla `answered`, bir cevapsız soru `insufficient_evidence` + `not_in_documents` döndü; yapılandırılmış çıktı OpenRouter'ın Responses API'si üzerinden çalıştı. Daha önceki iki deneme, OpenRouter'da etkin olan sıfır veri saklama (ZDR) kısıtı OpenAI uç noktasını dışladığı için 404 aldı; servis bunu doğru biçimde 503 `provider_unavailable` olarak döndü. Bu bir değerlendirme değildir; kalite iddiası eval'a kalır.
+- **Model sürümü logda takma adla görünür.** OpenRouter yanıtta modeli `openai/gpt-6-luna` olarak bildiriyor, tarihli slug'ı değil. Hangi snapshot'ın kullanıldığı ancak OpenRouter'ın public models API'sinden (o gün `openai/gpt-6-luna-20260922`) ayrıca kaydedilebilir.
+- **Enjeksiyon dayanıklılığı kanıtlanmadı.** Testler, talimat içeren soru ve belgenin modele yalnızca veri olarak gittiğini ve sunucu doğrulamasının sürdüğünü gösterir; canlı modelin talimata uyup uymadığını göstermez.
+- **Kaynak doğrulaması anlamsal değildir** (K25). Doğru bölüme atıf yapan yanlış bir süre geçebilir; bunu yalnızca eval ve insan incelemesi yakalar.
+- **İptal Python'a ulaşmaz.** .NET'in süresi dolduğunda veya istemci koptuğunda .NET'ten Python'a giden çağrı iptal edilir, ama Python'daki istek kendi işini bitirene kadar çalışır. Üretimde bu, model çağrısının (ve maliyetinin) `LLM_TIMEOUT_SECONDS`'a kadar sürmesi demektir. .NET'in 45 sn'si, 25 sn'lik model süresinden uzun olduğu için normal akışta .NET önce zaman aşımına düşmez.

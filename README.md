@@ -4,7 +4,7 @@ Kurgu şirket **Yardım bende Destek Teknolojileri**'nin destek çalışanına, 
 
 > Tamamen kurgu verilerle hazırlanmış değerlendirme demosudur. Üretim güvenliği veya KVKK/BDDK uyumu iddia edilmez.
 
-**Durum:** geliştiriliyor. Alıntı modu (`evidence_only`) uçtan uca çalışıyor: .NET API → Python servisi → tarih/kapsam bazlı sürüm görünümü → arama → kaynak bölüm adayları. Üretken mod (LLM cevabı ve kaynak doğrulama) henüz yok; `generative` istek 503 `generation_not_configured` döner. Docker Compose ve değerlendirme koşusu henüz yok.
+**Durum:** geliştiriliyor. Alıntı modu (`evidence_only`) uçtan uca çalışıyor: .NET API → Python servisi → tarih/kapsam bazlı sürüm görünümü → arama → kaynak bölüm adayları. Üretken mod (kaynaklı LLM cevabı ve kaynak doğrulama) çalışıyor: sahte model/HTTP katmanıyla test edildi ve OpenRouter üzerinden birkaç gerçek smoke çağrısıyla denendi; değerlendirme koşusu henüz yapılmadı (bkz. [`docs/decisions.md`](docs/decisions.md), bilinen sınırlar). Docker Compose henüz yok.
 
 Mimari akış: istek → .NET API → FastAPI RAG servisi → tarih/kapsam bazlı geçerli belge görünümü → bölüm araması → alıntı modu veya kaynaklı LLM cevabı → kaynak doğrulama → cevap.
 
@@ -41,9 +41,29 @@ Mimari akış: istek → .NET API → FastAPI RAG servisi → tarih/kapsam bazl�
 
 Alıntı modunda cevap `status: "evidence_only"` ile döner: `evidence` sürüm görünümünden getirilen aday bölümlerdir (birebir alıntı, belge, sürüm, geçerlilik tarihleri), `answer` `null`'dır. Adaylar sorunun cevabı olduğu iddiasını taşımaz. Desteklenmeyen kapsam veya geçerli sürüm olmayan tarih `insufficient_evidence` ve `reason_code` ile döner. `version_decisions` hangi sürümün seçildiğini ve hangisinin neden dışlandığını gösterir. Tüm alanlar, durumlar ve hata kodları: [`docs/project-spec.md`](docs/project-spec.md) §5.
 
+## Üretken mod (LLM ile kaynaklı cevap)
+
+`"mode": "generative"` isteğinde sürüm görünümünden gelen en fazla 4 bölüm, soru, etkin tarih ve kapsamla birlikte dil modeline gider. Model yalnızca kısa iddialar (claim) ve her biri için bölüm ID'leri döndürür. Sunucu her ID'nin bu istekte verilen bölümlerden biri olduğunu ve durumun iddialarla tutarlı olduğunu denetler, cevabı ve birebir alıntıları kendisi kurar. Kurallara uymayan çıktı düzeltilmez, 502 `invalid_generation_output` olur. Sağlayıcı hataları 503 `provider_unavailable` veya 504 `generation_timeout` döner; hiçbiri "belgede bilgi yok" sayılmaz ve alıntı moduna düşülmez. Kurallar: [`docs/project-spec.md`](docs/project-spec.md) §5 "Üretim".
+
+Açmak için Python servisini anahtarla başlatın (anahtar yoksa `generative` istek 503 `generation_not_configured` döner):
+
+- `OPENAI_API_KEY`: sağlayıcı anahtarı. Değerlendirme kurulumunda bu bir OpenRouter anahtarıdır.
+- `OPENAI_BASE_URL`: boşsa `https://api.openai.com/v1`; OpenRouter için `https://openrouter.ai/api/v1`. OpenRouter'da istek OpenAI'ın kendi uç noktasına sabitlenir, başka bir sağlayıcıya sessizce geçmez.
+- `OPENAI_MODEL`: OpenAI'da `gpt-6-luna` (varsayılan), OpenRouter'da `openai/gpt-6-luna`.
+- `APP_MODE=generative`, `mode` alanı verilmeyen istekleri de üretken moda alır.
+
+```bash
+# src/rag_service içinden; servis .env'i kendiliğinden okumaz, uv okutur
+uv run --env-file ../../.env uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000
+```
+
+OpenRouter ek bir aracıdır ve kendi veri politikası vardır. İstek `store=false` ile gönderilir, ancak bu OpenRouter'ın veya OpenAI'ın kendi saklama politikalarını ortadan kaldırmaz. Modele yalnızca soru, etkin tarih/kapsam ve seçilen bölümler gider; korpusun geri kalanı, eski sürümler, kimlik veya ortam bilgisi gitmez.
+
+Her model çağrısı ücretlidir. Readiness modeli hiç çağırmaz; `generation_configured=true` yalnızca anahtarla bir istemci kurulduğunu gösterir.
+
 ## Yerel embedding modeli ve arama
 
-- Model: `intfloat/multilingual-e5-small`, Hugging Face commit'i `614241f622f53c4eeff9890bdc4f31cfecc418b3` (`src/rag_service/app/settings.py` içinde sabit). Modelin kendi reposundaki ONNX dosyası ONNX Runtime ile CPU'da çalışır; GPU gerekmez.
+- Model: `intfloat/multilingual-e5-small`, Hugging Face commit'i `614241f622f53c4eeff9890bdc4f31cfecc418b3` (varsayılan; `EMBEDDING_REVISION` ile yalnızca tam commit hash'i verilebilir). Modelin kendi reposundaki ONNX dosyası ONNX Runtime ile CPU'da çalışır; GPU gerekmez.
 - **İlk çalıştırma internet ister.** Model (yaklaşık 470 MB) ve tokenizer (yaklaşık 17 MB) `MODEL_CACHE_DIR` (varsayılan `var/models/`) altına iner. Önbellek dolduktan sonra model ağ olmadan yüklenir.
 - İndeks (`INDEX_PATH`, varsayılan `var/index.sqlite3`) Markdown belgelerden türetilmiş veridir. Belge, metadata veya model değiştiyse indeks yüklenirken kendiliğinden yeniden üretilir; bozuk dosya kullanılmaz, yeniden üretilir. Dosyayı silmek de güvenlidir.
 
@@ -52,10 +72,16 @@ Alıntı modunda cevap `status: "evidence_only"` ile döner: `evidence` sürüm 
 Python (`src/rag_service` içinden):
 
 ```bash
-uv run pytest                          # ağsız; sahte embedding ile birim ve API testleri
+uv run pytest                          # ağsız; sahte embedding ve sahte model ile birim ve API testleri
 uv run pytest -m model                 # gerçek model testleri (ilk seferde modeli indirir)
 uv run python measure_retrieval.py     # geliştirme sorularının sıralaması ve ham skorları
 uv run ruff check . && uv run ruff format --check .
+```
+
+Canlı üretim smoke testi; varsayılan testlerin parçası değildir, anahtar ister ve tam iki ücretli model çağrısı yapar (iki geliştirme sorusu):
+
+```bash
+uv run --env-file ../../.env python smoke_generation.py
 ```
 
 .NET (repo kökünden):

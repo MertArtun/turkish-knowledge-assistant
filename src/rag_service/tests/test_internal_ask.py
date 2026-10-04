@@ -5,9 +5,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.contracts import AskResponse, ErrorResponse
+from app.generation import GenerationError
 from app.main import create_app
 from app.service import Assistant
 from tests.fake_assistant import QueryEmbedder, make_assistant
+from tests.fake_generator import FakeGenerator, model_answer
 
 GENERATED_ID = re.compile(r"[0-9a-f]{32}")
 QUESTION = "İade kargosunu kim ödüyor?"
@@ -137,3 +139,38 @@ def test_unexpected_error_is_500_internal_error_without_its_text(monkeypatch):
     assert response.headers["X-Request-ID"] == "req-500"
     assert "boom" not in response.text
     assert "secret" not in response.text
+
+
+def test_generative_answer_is_200_with_the_contract_body():
+    claim = "Şirket iade etiketi sağlar ve bu etiketle yapılan gönderimin bedelini karşılar."
+    generator = FakeGenerator(model_answer("answered", [(claim, ["D04#kargo"])]))
+    client = TestClient(create_app(make_assistant({"D04#kargo": 0.9}, generator=generator)))
+
+    response = post(client, {"question": QUESTION, "mode": "generative"}, request_id="req-gen")
+
+    assert response.status_code == 200
+    answer = AskResponse.model_validate(response.json())
+    assert (answer.status, answer.answer, answer.request_id) == ("answered", claim, "req-gen")
+    assert [source.chunk_id for source in answer.sources] == ["D04#kargo"]
+
+
+@pytest.mark.parametrize(
+    ("code", "status"),
+    [
+        ("provider_unavailable", 503),
+        ("generation_timeout", 504),
+        ("invalid_generation_output", 502),
+    ],
+)
+def test_generation_failures_have_their_own_status_and_safe_message(code, status):
+    detail = "status=401 code='invalid_api_key'"
+    generator = FakeGenerator(error=GenerationError(code, detail))
+    client = TestClient(create_app(make_assistant({"D04#kargo": 0.9}, generator=generator)))
+
+    response = post(client, {"question": QUESTION, "mode": "generative"}, request_id="req-fail")
+
+    assert response.status_code == status
+    error = error_of(response)
+    assert (error.request_id, error.error.code) == ("req-fail", code)
+    assert "invalid_api_key" not in response.text
+    assert QUESTION not in response.text

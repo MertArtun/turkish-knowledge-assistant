@@ -50,7 +50,8 @@ X-Request-ID: example-unsupported-scope
   "scope": {"country": "DE", "customer_type": "B2B", "product": "MH-10"}
 }
 
-### Üretken mod henüz yok: 503 generation_not_configured (alıntı moduna sessizce düşülmez)
+### Üretken mod: anahtar varsa kaynaklı cevap (ücretli model çağrısı); anahtar yoksa 503
+### generation_not_configured (alıntı moduna sessizce düşülmez)
 POST {{api}}/api/ask
 Content-Type: application/json
 

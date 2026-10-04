@@ -1,7 +1,8 @@
 """The request flow of the assistant, in one place.
 
 resolve as_of and scope -> select the valid document versions -> search only those versions ->
-build the response. The corpus, the embedding model and the index are loaded once at startup
+evidence-only response, or a generated answer checked against the sections the model was given.
+The corpus, the embedding model, the index and the generator are set up once at startup
 (load_assistant); `Assistant.ask` only reads them.
 """
 
@@ -17,6 +18,7 @@ import numpy as np
 from app.contracts import (
     AskRequest,
     AskResponse,
+    Claim,
     ErrorCode,
     Mode,
     ReasonCode,
@@ -24,14 +26,28 @@ from app.contracts import (
     SourceSection,
     VersionDecision,
 )
-from app.documents import Document, load_corpus
+from app.documents import Chunk, Document, load_corpus
 from app.embeddings import E5Embedder, Embedder, embed_query, query_text
+from app.generation import (
+    GenerationError,
+    Generator,
+    OpenAIGenerator,
+    SystemPrompt,
+    compose_answer,
+    load_system_prompt,
+    render_input,
+    validate_answer,
+)
 from app.index_store import Index, load_or_build_index
 from app.retrieval import ScoredChunk, retrieve
 from app.settings import Settings
 from app.versioning import Clock, effective_as_of, effective_scope, select_versions, system_clock
 
 logger = logging.getLogger(__name__)
+
+# The most sections the model sees, whatever TOP_K is. Each section is at most 512 embedding-model
+# tokens (checked when the index loads) and so is the question, which bounds the model's input.
+GENERATION_SECTION_LIMIT = 4
 
 # Standard explanations written by the server, never by a model. They state why nothing can be
 # answered from the documents; they contain no policy values.
@@ -48,6 +64,15 @@ GENERATION_NOT_CONFIGURED = (
     "Üretken cevap modu bu ortamda yapılandırılmamış. mode alanını evidence_only olarak "
     "gönderebilirsiniz."
 )
+GENERATION_FAILED: dict[ErrorCode, str] = {
+    "provider_unavailable": (
+        "Dil modeli sağlayıcısı isteği şu anda karşılayamıyor. Biraz sonra tekrar deneyin."
+    ),
+    "generation_timeout": "Dil modeli zamanında cevap vermedi.",
+    "invalid_generation_output": (
+        "Dil modelinin cevabı kaynak doğrulamasından geçmedi; güvenilir bir cevap üretilemedi."
+    ),
+}
 
 
 class AskError(Exception):
@@ -70,14 +95,16 @@ class Assistant:
     # time in a worker thread: the event loop stays free and parallel calls cannot oversubscribe
     # the CPU.
     embedding_slot: anyio.CapacityLimiter = field(default_factory=lambda: anyio.CapacityLimiter(1))
+    # None without OPENAI_API_KEY: generative requests are then refused, never answered otherwise.
+    generator: Generator | None = None
+    prompt: SystemPrompt = field(default_factory=load_system_prompt)
 
     async def ask(self, request: AskRequest, request_id: str) -> AskResponse:
         as_of = effective_as_of(request.as_of, self.clock)
         scope = effective_scope(request.scope)
         mode = request.mode or self.settings.app_mode
-        if mode == "generative":
-            # Grounded generation is not part of this build. Refusing keeps a generative request
-            # from receiving unvalidated text, or evidence it did not ask for (no fallback).
+        if mode == "generative" and self.generator is None:
+            # No silent fallback: a generative request never receives evidence it did not ask for.
             raise AskError("generation_not_configured", GENERATION_NOT_CONFIGURED)
 
         decisions = select_versions([doc.metadata for doc in self.documents], scope, as_of)
@@ -108,6 +135,11 @@ class Assistant:
                 request_id, mode, as_of, scope, "not_in_documents", NO_MATCHING_SECTION
             )
 
+        if mode == "generative":
+            return await self._generate(
+                request_id, request.question, as_of, scope, results, decisions, embed_ms, search_ms
+            )
+
         self._log(request_id, mode, "evidence_only", results, embed_ms, search_ms)
         return AskResponse(
             request_id=request_id,
@@ -119,9 +151,77 @@ class Assistant:
             claims=[],
             sources=[],
             # Candidates, not an answer: nothing says they answer the question.
-            evidence=[self._source_section(result) for result in results],
+            evidence=[self._source_section(result.chunk) for result in results],
             missing_topics=[],
             reason_code=None,
+            version_decisions=self._decisions_for(results, decisions),
+            retrieved_chunk_ids=[result.chunk.chunk_id for result in results],
+        )
+
+    async def _generate(
+        self,
+        request_id: str,
+        question: str,
+        as_of: date,
+        scope: Scope,
+        results: list[ScoredChunk],
+        decisions: dict[str, VersionDecision],
+        embed_ms: float,
+        search_ms: float,
+    ) -> AskResponse:
+        # Only these sections reach the model: current versions, in this scope, at most four.
+        provided = {r.chunk.chunk_id: r.chunk for r in results[:GENERATION_SECTION_LIMIT]}
+        user_input = render_input(question, as_of, scope, list(provided.values()))
+        started = time.perf_counter()
+        try:
+            generation = await self.generator.generate(self.prompt.text, user_input)
+            validate_answer(generation.answer, provided)
+        except GenerationError as error:
+            generate_ms = (time.perf_counter() - started) * 1000
+            self._log(request_id, "generative", error.code, results, embed_ms, search_ms)
+            logger.info(
+                "generation request_id=%s outcome=%s detail=%s prompt=%s generate_ms=%.1f",
+                request_id,
+                error.code,
+                error.detail,
+                self.prompt.version,
+                generate_ms,
+            )
+            raise AskError(error.code, GENERATION_FAILED[error.code]) from None
+        generate_ms = (time.perf_counter() - started) * 1000
+
+        answer = generation.answer
+        cited = list(dict.fromkeys(i for claim in answer.claims for i in claim.source_chunk_ids))
+        self._log(request_id, "generative", answer.status, results, embed_ms, search_ms)
+        logger.info(
+            "generation request_id=%s outcome=%s cited=%s reason=%s missing=%d model=%r "
+            "prompt=%s@%s generate_ms=%.1f input_tokens=%s output_tokens=%s reasoning_tokens=%s",
+            request_id,
+            answer.status,
+            ",".join(cited) or "-",
+            answer.reason_code,
+            len(answer.missing_topics),
+            generation.model,
+            self.prompt.version,
+            self.prompt.sha256[:12],
+            generate_ms,
+            generation.input_tokens,
+            generation.output_tokens,
+            generation.reasoning_tokens,
+        )
+        return AskResponse(
+            request_id=request_id,
+            status=answer.status,
+            mode="generative",
+            effective_as_of=as_of,
+            effective_scope=scope,
+            answer=compose_answer(answer),
+            claims=[Claim(text=c.text, source_chunk_ids=c.source_chunk_ids) for c in answer.claims],
+            # Title, version, dates and the verbatim quote come from the corpus, never the model.
+            sources=[self._source_section(provided[chunk_id]) for chunk_id in cited],
+            evidence=[],
+            missing_topics=answer.missing_topics,
+            reason_code=answer.reason_code,
             version_decisions=self._decisions_for(results, decisions),
             retrieved_chunk_ids=[result.chunk.chunk_id for result in results],
         )
@@ -132,10 +232,9 @@ class Assistant:
             raise AskError("invalid_request", QUESTION_TOO_LONG)
         return embed_query(self.embedder, question)
 
-    def _source_section(self, result: ScoredChunk) -> SourceSection:
+    def _source_section(self, chunk: Chunk) -> SourceSection:
         # Quote and metadata come from the loaded corpus, so they are always the stored text of
         # the selected version.
-        chunk = result.chunk
         meta = self._document(chunk.doc_id).metadata
         return SourceSection(
             chunk_id=chunk.chunk_id,
@@ -186,13 +285,19 @@ class Assistant:
 
 
 def load_assistant(settings: Settings) -> Assistant:
-    """Startup: any CorpusError, model download error or IndexStoreError stops the service."""
+    """Startup: any CorpusError, model download error or IndexStoreError stops the service.
+
+    The generator is created whenever a key is set (no network call), so a generative request can
+    be served in either APP_MODE; without a key it stays None."""
     documents = load_corpus(settings.knowledge_dir)
     embedder = E5Embedder(
         settings.embedding_model, settings.embedding_revision, settings.model_cache_dir
     )
     index = load_or_build_index(documents, embedder, settings.index_path)
-    return Assistant(settings=settings, documents=documents, embedder=embedder, index=index)
+    generator = OpenAIGenerator(settings) if settings.openai_api_key is not None else None
+    return Assistant(
+        settings=settings, documents=documents, embedder=embedder, index=index, generator=generator
+    )
 
 
 def _reason_without_valid_version(decisions: dict[str, VersionDecision]) -> ReasonCode:

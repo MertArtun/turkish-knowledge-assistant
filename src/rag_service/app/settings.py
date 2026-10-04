@@ -3,7 +3,15 @@
 from collections.abc import Mapping
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError, model_validator
+from pydantic import (
+    AnyHttpUrl,
+    BaseModel,
+    ConfigDict,
+    Field,
+    SecretStr,
+    ValidationError,
+    model_validator,
+)
 
 from app.contracts import Mode
 
@@ -12,8 +20,10 @@ from app.contracts import Mode
 ENV_TO_FIELD = {
     "APP_MODE": "app_mode",
     "OPENAI_API_KEY": "openai_api_key",
+    "OPENAI_BASE_URL": "openai_base_url",
     "OPENAI_MODEL": "openai_model",
     "EMBEDDING_MODEL": "embedding_model",
+    "EMBEDDING_REVISION": "embedding_revision",
     "KNOWLEDGE_DIR": "knowledge_dir",
     "INDEX_PATH": "index_path",
     "MODEL_CACHE_DIR": "model_cache_dir",
@@ -33,11 +43,15 @@ class Settings(BaseModel):
 
     app_mode: Mode = "evidence_only"
     openai_api_key: SecretStr | None = None
-    openai_model: str = Field(default="gpt-4.1-mini-2025-04-14", min_length=1)
+    # OpenAI by default; OpenRouter's OpenAI-compatible endpoint is https://openrouter.ai/api/v1.
+    openai_base_url: AnyHttpUrl = AnyHttpUrl("https://api.openai.com/v1")
+    # The model ID as the endpoint expects it (OpenRouter prefixes it with "openai/"). It must be
+    # a reasoning model: the request sets a reasoning effort.
+    openai_model: str = Field(default="gpt-6-luna", min_length=1)
     embedding_model: str = Field(default="intfloat/multilingual-e5-small", min_length=1)
     # Hugging Face commit of the model repo, checked against the HF API when it was pinned. A full
     # hash (not a branch) keeps the model fixed and lets a cached copy load without the network.
-    # Pinned in code, not read from the environment: a new revision needs the model checks rerun.
+    # A different revision needs `uv run pytest -m model` and measure_retrieval.py rerun.
     embedding_revision: str = Field(
         default="614241f622f53c4eeff9890bdc4f31cfecc418b3", pattern=r"^[0-9a-f]{40}$"
     )
@@ -56,13 +70,10 @@ class Settings(BaseModel):
             raise ValueError("APP_MODE=generative requires OPENAI_API_KEY")
         return self
 
-    @property
-    def generation_configured(self) -> bool:
-        return self.openai_api_key is not None
-
 
 def load_settings(environ: Mapping[str, str]) -> Settings:
-    # Blank values (e.g. `OPENAI_API_KEY=` copied from .env.example) mean "not set".
+    # Blank values (e.g. `OPENAI_API_KEY=` copied from .env.example) mean "not set". Surrounding
+    # whitespace is stripped: a stray space in a copied key would otherwise break authentication.
     values = {
         field: environ[env].strip()
         for env, field in ENV_TO_FIELD.items()

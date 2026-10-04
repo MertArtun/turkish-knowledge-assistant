@@ -2,7 +2,8 @@
 
 Every query embeds to the same vector q = (1, 0), and each section's vector is (s, sqrt(1 - s²)),
 so the dot product (the retrieval score) of a section is exactly the s given for it. Version
-selection, retrieval and response building run unchanged; only the model is replaced.
+selection, retrieval and response building run unchanged; only the embedding model is replaced
+(and the language model, when a test passes a fake generator).
 """
 
 import math
@@ -13,6 +14,7 @@ from datetime import UTC, datetime
 import numpy as np
 
 from app.documents import load_corpus
+from app.generation import Generator
 from app.index_store import Index
 from app.service import Assistant
 from app.settings import Settings, load_settings
@@ -71,6 +73,7 @@ def make_assistant(
     settings: Settings | None = None,
     embedder: QueryEmbedder | None = None,
     now: datetime = FIXED_NOW,
+    generator: Generator | None = None,
 ) -> Assistant:
     return Assistant(
         settings=settings or load_settings({}),
@@ -78,4 +81,5 @@ def make_assistant(
         embedder=embedder or QueryEmbedder(),
         index=index_with_scores(scores or {}),
         clock=lambda: now,
+        generator=generator,
     )

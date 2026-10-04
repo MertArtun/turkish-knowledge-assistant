@@ -191,6 +191,7 @@ class RunMetadata(ContractModel):
     embedding_model: str
     embedding_revision: str | None
     corpus_fingerprint: str | None
+    prompt_version: str | None
     prompt_hash: str | None
     top_k: int
     min_retrieval_score: float | None

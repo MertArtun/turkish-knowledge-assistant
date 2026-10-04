@@ -77,6 +77,7 @@ public sealed record RunMetadata(
     string EmbeddingModel,
     string? EmbeddingRevision,
     string? CorpusFingerprint,
+    string? PromptVersion,
     string? PromptHash,
     int TopK,
     double? MinRetrievalScore);

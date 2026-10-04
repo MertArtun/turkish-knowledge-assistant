@@ -8,7 +8,7 @@
     "customer_type": "B2B",
     "product": "MH-10"
   },
-  "answer": "Türkiye kapsamında iade süresi teslimden itibaren 30 takvim günüdür. Belgelerde şu konu için bilgi bulunamadı: Almanya'daki müşteriler için iade süresi.",
+  "answer": "Türkiye kapsamında iade süresi teslimden itibaren 30 takvim günüdür. Bu istekteki belgelerle yanıtlanamayan konular: Almanya'daki müşteriler için iade süresi.",
   "claims": [
     {
       "text": "Türkiye kapsamında iade süresi teslimden itibaren 30 takvim günüdür.",

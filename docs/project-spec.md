@@ -161,13 +161,30 @@ Tanınmayan alan veya enum değeri 400 ile reddedilir. Alan adları ve enum değ
 Uygulama: `src/rag_service/app/service.py::Assistant.ask`. Sıra:
 
 1. `as_of`, `scope` ve `mode` çözülür (`mode` yoksa `APP_MODE`).
-2. `mode=generative` ise hiçbir iş yapılmadan 503 `generation_not_configured` döner. Üretim yolu henüz yoktur; istek alıntı moduna düşürülmez, sahte cevap üretilmez.
+2. `mode=generative` ise ve generator yoksa (`OPENAI_API_KEY` tanımlı değil) hiçbir iş yapılmadan 503 `generation_not_configured` döner; istek alıntı moduna düşürülmez, sahte cevap üretilmez.
 3. Sürüm görünümü hesaplanır (§4). Hiçbir prosedürde seçili belge yoksa arama yapılmaz ve `insufficient_evidence` döner: tüm dışlama nedenleri `scope_mismatch` ise `reason_code=unsupported_scope`, değilse `no_valid_version`.
 4. Soru embedding'i ayrı bir thread'de, aynı anda tek çağrı olarak hesaplanır (event loop bloke olmaz). Token sınırı burada denetlenir.
 5. Arama yapılır (§4). Eşik tüm adayları elerse `insufficient_evidence` + `not_in_documents` döner (eşik kapalıyken bu olmaz).
 6. `evidence_only` cevabında `evidence`, sıralı top-k bölümlerdir; `quote` ve metadata yüklü korpustan gelir. `version_decisions` getirilen bölümlerin prosedürleri için, ilk görünme sırasıyladır. Eşik kapalı olduğu için belgelerde cevabı olmayan bir soruda da adaylar döner; adaylar cevap değildir.
+7. `generative` istekte ilk en fazla 4 bölüm (`GENERATION_SECTION_LIMIT`; `TOP_K` daha büyük olsa da) modele gider ve model çıktısı aşağıdaki kurallarla doğrulanır (Üretim).
 
-`insufficient_evidence` cevaplarında `evidence`, `retrieved_chunk_ids` ve `version_decisions` boştur; `answer` sunucunun yazdığı standart Türkçe açıklamadır.
+3 ve 5. adımlardaki `insufficient_evidence` cevaplarında `evidence`, `retrieved_chunk_ids` ve `version_decisions` boştur; `answer` sunucunun yazdığı standart Türkçe açıklamadır. Model `insufficient_evidence` derse arama yapılmış olduğu için `retrieved_chunk_ids` ve `version_decisions` doludur.
+
+### Üretim (`generative`)
+
+Uygulama: `src/rag_service/app/generation.py`, akış `service.py::Assistant._generate`.
+
+- **Modele gidenler:** sistem talimatı (`app/prompts/answer.txt`, sürüm `PROMPT_VERSION`) ve yalnızca veri içeren bir JSON kullanıcı mesajı: `effective_as_of`, `effective_scope`, `question`, `sources[{id, heading_path, text}]`. `sources`, bu isteğin sürüm/kapsam görünümünden gelen en fazla 4 bölümdür; eski sürüm metni, korpusun geri kalanı, geçmiş, ortam değişkenleri veya kimlik gitmez. Her bölüm ve soru embedding modelinin 512 token sınırı içindedir; bağlam bu yüzden sınırlıdır.
+- **Model çağrısı:** OpenAI Responses API, resmî Python SDK'sı, `responses.parse` ile katı JSON şeması (yapılandırılmış çıktı), `store=false`, `max_output_tokens=1000`, `reasoning.effort=low`, `temperature` yok. İstemci zaman aşımı `LLM_TIMEOUT_SECONDS`, otomatik retry yok. `OPENAI_BASE_URL` OpenRouter ise istek `provider: {only: ["openai"], allow_fallbacks: false, require_parameters: true}` ile OpenAI'ın kendi uç noktasına sabitlenir; bu alan api.openai.com'a hiç gönderilmez.
+- **Model çıktısı:** `status` (`answered` | `partial` | `insufficient_evidence`), `claims[{text, source_chunk_ids}]`, `missing_topics[]`, `reason_code` (`not_in_documents` | `unsupported_scope` | `as_of_required` | `null`). Başlık, sürüm, tarih, skor veya alıntı alanı yoktur.
+- **Sunucu doğrulaması** (`validate_answer`; ihlal varsa hiçbir şey silinip düzeltilmez, 502 `invalid_generation_output`):
+  - her claim'in metni boş değil ve en az bir kaynak ID'si var;
+  - her kaynak ID'si bu istekte modele verilen bölümlerden biri (korpusta olan ama bu istekte verilmeyen ID de reddedilir);
+  - `missing_topics` öğeleri boş değil;
+  - `answered`: claim var, `missing_topics` boş, `reason_code` null; `partial`: claim ve `missing_topics` var; `insufficient_evidence`: claim yok, `reason_code` dolu.
+- **Cevabın kurulması** (`compose_answer`): `answered`/`partial` için claim metinleri sırayla; `insufficient_evidence` için `reason_code`'un standart açıklaması. `missing_topics` doluysa sona "Bu istekteki belgelerle yanıtlanamayan konular: …" cümlesi eklenir. `sources`, claim'lerin atıf yaptığı bölümlerdir (ilk atıf sırasıyla); başlık, sürüm, tarihler ve birebir alıntı yüklü korpustan gelir.
+- **Sağlayıcı hataları** cevap değil hatadır; hiçbiri `insufficient_evidence` olmaz ve alıntı moduna düşülmez: zaman aşımı → `generation_timeout`; bağlantı hatası ve sağlayıcının her HTTP hatası (kimlik, kota/hız sınırı, model erişimi, yönlendirme reddi, 5xx) → `provider_unavailable`; JSON olmayan/kesilmiş/şemaya uymayan çıktı, `completed` olmayan yanıt (ör. `max_output_tokens`), model reddi (refusal) → `invalid_generation_output`.
+- Kaynak ID doğrulaması anlamsal doğruluk garantisi değildir: verilen bölüme atıf yapan yanlış bir claim geçer (`tests/test_service.py::test_source_check_is_not_a_meaning_check`).
 
 ### Başarılı cevap
 
@@ -192,12 +209,12 @@ Kaynak/evidence nesnesi: `chunk_id`, `doc_id`, `document_title`, `version`, `sec
 
 | Durum | Koşul |
 |---|---|
-| `answered` | ≥1 kaynaklı claim, `answer` dolu, `missing_topics` boş |
-| `partial` | ≥1 kaynaklı claim, `answer` dolu, `missing_topics` dolu |
+| `answered` | ≥1 kaynaklı claim, `answer` dolu, `missing_topics` boş (üretimde ayrıca `reason_code` null) |
+| `partial` | ≥1 kaynaklı claim, `answer` dolu, `missing_topics` dolu; `reason_code` opsiyonel |
 | `insufficient_evidence` | claim/sources boş, `answer` Türkçe açıklama, `reason_code` dolu |
 | `evidence_only` | yalnızca `mode=evidence_only`; claim/sources boş, `answer=null`, `evidence` dolu (aday yoksa `insufficient_evidence`) |
 
-`mode=evidence_only` hiçbir zaman claim üretmez. Model durum/claim çelişkisi üretirse sunucu bunu düzeltip başarıya çevirmez; `invalid_generation_output` döner.
+`mode=evidence_only` hiçbir zaman claim üretmez. Model durum/claim çelişkisi üretirse sunucu bunu düzeltip başarıya çevirmez; `invalid_generation_output` döner (kurallar: Üretim).
 
 ### Hata cevabı
 
@@ -209,7 +226,7 @@ Kaynak/evidence nesnesi: `chunk_id`, `doc_id`, `document_title`, `version`, `sec
 | `payload_too_large` | .NET | 413 | Gövde 16 KiB'den büyük |
 | `service_not_ready` | Python | 503 | İndeks veya embedding modeli hazır değil. Şu an üretilmez: Python her şeyi bağlantı kabul etmeden önce yükler (Readiness) |
 | `generation_not_configured` | Python | 503 | `generative` istendi ama anahtar/yapılandırma yok (mock cevap yok, sessiz fallback yok) |
-| `provider_unavailable` | Python | 503 | Sağlayıcı isteği reddetti: kimlik doğrulama, kota, hız sınırı, model erişimi, ağ |
+| `provider_unavailable` | Python | 503 | Sağlayıcıya bağlanılamadı veya sağlayıcı HTTP hatası döndü: kimlik doğrulama, kota, hız sınırı, model erişimi, OpenRouter yönlendirme reddi, 5xx |
 | `generation_timeout` | Python | 504 | LLM çağrısı `LLM_TIMEOUT_SECONDS` içinde bitmedi |
 | `upstream_timeout` | .NET | 504 | Python `RAG_TIMEOUT_SECONDS` içinde cevap vermedi |
 | `upstream_unavailable` | .NET | 503 | Python'a bağlanılamadı |
@@ -220,9 +237,9 @@ Kaynak/evidence nesnesi: `chunk_id`, `doc_id`, `document_title`, `version`, `sec
 ### Readiness
 
 `GET /health/ready` → hazırsa 200, değilse 503; gövde her iki durumda aynı şekilde:
-`status` (`ready`|`not_ready`), `checks` (`corpus_index`, `embedding_model`), `run_metadata` (`app_mode`, `generation_configured`, `llm_model`, `embedding_model`, `embedding_revision`, `corpus_fingerprint`, `prompt_hash`, `top_k`, `min_retrieval_score`). Readiness hiçbir zaman ücretli LLM çağrısı yapmaz; `generation_configured=true` yalnızca anahtarın tanımlı olduğunu söyler, kotanın kullanılabilir olduğunu kanıtlamaz.
+`status` (`ready`|`not_ready`), `checks` (`corpus_index`, `embedding_model`), `run_metadata` (`app_mode`, `generation_configured`, `llm_model`, `embedding_model`, `embedding_revision`, `corpus_fingerprint`, `prompt_version`, `prompt_hash`, `top_k`, `min_retrieval_score`). Readiness hiçbir zaman ücretli LLM çağrısı yapmaz; `generation_configured=true` yalnızca anahtarla bir generator kurulduğunu söyler, anahtarın, kotanın veya model erişiminin çalıştığını kanıtlamaz. `llm_model` yapılandırılan model ID'sidir; sağlayıcının bildirdiği model her üretimin log satırındadır.
 
-Python servisi ayarları, korpusu, embedding modelini ve indeksi bağlantı kabul etmeden önce yükler ve doğrular (`app/main.py::create_app`). Herhangi biri başarısız olursa süreç hata koduyla durur. Bu yüzden Python'un servis ettiği readiness her zaman `ready`'dir; yükleme sürerken (ilk model indirmesi dâhil) port kapalıdır ve .NET 503 `upstream_unavailable` döner. `not_ready` gövdesi sözleşmede durur ama Python şu an bunu üretmez. `corpus_fingerprint` yüklenen indeksin fingerprint'idir; `prompt_hash` üretim yolu eklenene kadar `null`'dır.
+Python servisi ayarları, korpusu, embedding modelini ve indeksi bağlantı kabul etmeden önce yükler ve doğrular (`app/main.py::create_app`). Herhangi biri başarısız olursa süreç hata koduyla durur. Bu yüzden Python'un servis ettiği readiness her zaman `ready`'dir; yükleme sürerken (ilk model indirmesi dâhil) port kapalıdır ve .NET 503 `upstream_unavailable` döner. `not_ready` gövdesi sözleşmede durur ama Python şu an bunu üretmez. `corpus_fingerprint` yüklenen indeksin fingerprint'idir; `prompt_hash`, prompt dosyasının SHA-256 değeridir.
 
 ### Cevapta olmayan, logda olan
 
@@ -230,6 +247,7 @@ Skorlar, arama/üretim/toplam süreleri, prompt hash'i, model revision'ı ve cor
 
 Şu anki log satırları (düz metin; JSON log yapılandırması henüz yok):
 - Python, her `/internal/ask` için: `request_id`, mod, sonuç, getirilen chunk ID'leri ve skorları, embedding ve arama süresi (ms), fingerprint'in ilk 12 karakteri. Reddedilen istekte `request_id` ve hata kodu; geçersiz istekte yalnızca hatalı alanların adları.
+- Python, her üretim için ikinci bir satır: sonuç, atıf yapılan chunk ID'leri, `reason_code`, eksik konu sayısı, sağlayıcının bildirdiği model, prompt sürümü ve hash'in ilk 12 karakteri, üretim süresi, `input/output/reasoning` token sayıları. Hata durumunda hata kodu ve güvenli ayrıntı (HTTP durumu, sağlayıcı hata kodu, OpenRouter yönlendirme nedeni, şema hatası türü); sağlayıcının mesaj metni, soru ve model çıktısının metni loglanmaz.
 - .NET, her Python çağrısı için: `request_id`, Python'un HTTP durumu, süre (ms); hata eşlemesinde eşlenen kod; sözleşmeye uymayan cevapta yalnızca JSON yolu.
 
 ### Fixture'lar
@@ -245,7 +263,7 @@ Skorlar, arama/üretim/toplam süreleri, prompt hash'i, model revision'ı ve cor
 
 ## 6. Yapılandırma
 
-İsimler `.env.example`, kod ve README'de birebir aynıdır. Python: `APP_MODE` (`evidence_only` varsayılan | `generative`), `OPENAI_API_KEY`, `OPENAI_MODEL`, `EMBEDDING_MODEL`, embedding revision (ortam değişkeni değil; `app/settings.py` içinde tam commit hash'i olarak sabit: `614241f622f53c4eeff9890bdc4f31cfecc418b3`; kısa hash veya dal adı reddedilir), `KNOWLEDGE_DIR`, `INDEX_PATH`, `MODEL_CACHE_DIR`, `TOP_K` (1–20, varsayılan 4), `MIN_RETRIEVAL_SCORE` (boş = kapalı; −1..1), `LLM_TIMEOUT_SECONDS` (0–120, varsayılan 25). .NET: `RAG_SERVICE_URL` (mutlak http/https adresi; boşsa `http://rag:8000`; yol kısmı kullanılmaz) ve `RAG_TIMEOUT_SECONDS` (0 < x ≤ 300, ondalık olabilir; boşsa 45). .NET `.env` dosyasını okumaz; yerelde bu değişkenler kabuktan verilir. Readiness çağrısının 3 sn timeout'u sabittir. Geçersiz değer veya `APP_MODE=generative` + boş anahtar başlangıçta açık hata verir; hata mesajı değişken adını söyler, değerini asla yazmaz. Boş değer iki serviste de "verilmemiş" sayılır.
+İsimler `.env.example`, kod ve README'de birebir aynıdır. Python: `APP_MODE` (`evidence_only` varsayılan | `generative`), `OPENAI_API_KEY` (baştaki/sondaki boşluk kırpılır), `OPENAI_BASE_URL` (http/https; boşsa `https://api.openai.com/v1`; OpenRouter: `https://openrouter.ai/api/v1`), `OPENAI_MODEL` (uç noktanın beklediği model ID'si; boşsa OpenAI'ın `gpt-6-luna`'sı, OpenRouter'da `openai/gpt-6-luna`; istek bir reasoning effort gönderdiği için reasoning modeli olmalıdır), `EMBEDDING_MODEL`, `EMBEDDING_REVISION` (tam 40 haneli commit hash'i; boşsa `614241f622f53c4eeff9890bdc4f31cfecc418b3`; kısa hash veya dal adı reddedilir), `KNOWLEDGE_DIR`, `INDEX_PATH`, `MODEL_CACHE_DIR`, `TOP_K` (1–20, varsayılan 4), `MIN_RETRIEVAL_SCORE` (boş = kapalı; −1..1), `LLM_TIMEOUT_SECONDS` (0–120, varsayılan 25). .NET: `RAG_SERVICE_URL` (mutlak http/https adresi; boşsa `http://rag:8000`; yol kısmı kullanılmaz) ve `RAG_TIMEOUT_SECONDS` (0 < x ≤ 300, ondalık olabilir; boşsa 45). .NET `.env` dosyasını okumaz; yerelde bu değişkenler kabuktan verilir. Readiness çağrısının 3 sn timeout'u sabittir. Geçersiz değer veya `APP_MODE=generative` + boş anahtar başlangıçta açık hata verir; hata mesajı değişken adını söyler, değerini asla yazmaz. Boş değer iki serviste de "verilmemiş" sayılır.
 
 ## 7. Değerlendirme beklentileri
 
@@ -262,7 +280,7 @@ Skorlar, arama/üretim/toplam süreleri, prompt hash'i, model revision'ı ve cor
 - [x] Sürüm seçimi sınır testleri (2026-06-30 / 2026-07-01 / 2026-10-04, taslak, withdrawn, gelecek sürüm, çakışma, bozuk supersedes) geçiyor.
 - [x] Kapsam filtresi aramadan önce; DE isteğine TR fallback yok; eski belge daha yüksek skorlu olsa da kullanılmıyor (`retrieve` düzeyinde test edildi).
 - [x] Stale indeks (metadata değişimi, silinen belge, model revision değişimi) servis edilmiyor.
-- [ ] Uydurma/istekte verilmemiş kaynak ID'si, kaynaksız claim ve tutarsız partial reddediliyor.
+- [x] Uydurma/istekte verilmemiş kaynak ID'si, kaynaksız claim ve tutarsız partial reddediliyor.
 - [x] Alıntı modunda LLM hiç çağrılmıyor; generative istek anahtarsız 503 dönüyor.
 - [x] .NET: istek doğrulama, giden JSON + request ID, 400/413/503/504/502 eşlemesi, timeout/iptal, readiness testleri geçiyor.
 - [x] Python ve C# fixture round-trip testleri geçiyor.
