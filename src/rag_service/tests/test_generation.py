@@ -37,6 +37,7 @@ VALID_OUTPUT = {
 # Changing the prompt text must come with a new PROMPT_VERSION; eval results record both.
 PINNED_PROMPT_HASHES = {
     "answer-v1": "e24d9ade7581b15623beca2eac3ca38c17b787aa41fd76921e266762525ea6b0",
+    "answer-v2": "c63fbe3197f0f954bff7375a87e9da52c531a7fa650fbf22b55bebbd189c0a0c",
 }
 
 
@@ -62,6 +63,17 @@ def test_system_prompt_describes_every_input_and_output_field():
     for name in [*input_fields, "id", "heading_path", "text", *ModelAnswer.model_fields]:
         assert name in text, name
     assert "source_chunk_ids" in text
+
+
+def test_system_prompt_states_the_scope_and_partial_rules():
+    # Observed live: a Germany-only question got a Turkey claim and "partial"; another answer was
+    # "partial" with no missing topic. The rules are spelled out; only the eval shows their effect.
+    text = load_system_prompt().text
+
+    assert "Soru yalnızca effective_scope dışını soruyorsa" in text
+    assert "kapsamını claim cümlesinde açıkça söyle" in text
+    assert "Sorulmayan bir kuralı claim olarak ekleme" in text
+    assert "missing_topics boş kalacaksa status partial olamaz" in text
 
 
 # --- what the model receives and may return ------------------------------------------------------

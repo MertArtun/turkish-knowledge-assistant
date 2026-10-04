@@ -26,7 +26,7 @@ from app.settings import Settings
 
 PROMPT_PATH = Path(__file__).parent / "prompts" / "answer.txt"
 # Bump together with the prompt text; tests pin the hash of each version.
-PROMPT_VERSION = "answer-v1"
+PROMPT_VERSION = "answer-v2"
 # Reasoning tokens count against this budget too; the effort is kept low (see generate()).
 MAX_OUTPUT_TOKENS = 1000
 OPENROUTER_HOST = "openrouter.ai"

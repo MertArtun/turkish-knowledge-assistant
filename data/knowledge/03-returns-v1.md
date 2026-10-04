@@ -14,18 +14,14 @@ scope:
 supersedes: null
 ---
 
-## Kapsam ve uygulanacak sürüm {#uygulama}
+## Uygulanacak sürüm {#uygulama}
 
-Bu prosedür, Türkiye'deki kurumsal (B2B) müşterilere teslim edilen MH-10 temsilci kulaklıklarının iadesini düzenler. Hangi prosedür sürümünün uygulanacağını iade talebinin açıldığı tarih belirler. Bu sürüm (1.0), 1 Ocak 2026 ve sonrasında açılan iade talepleri için geçerlidir.
+Hangi prosedür sürümünün uygulanacağını iade talebinin açıldığı tarih belirler. Bu sürüm (1.0), 1 Ocak 2026 ve sonrasında açılan iade talepleri için geçerlidir.
 
 ## İade süresi {#sure}
 
-İade talebi, ürünün tesliminden itibaren 14 takvim günü içinde açılabilir.
+Türkiye'deki kurumsal (B2B) müşteriler, MH-10 temsilci kulaklıkları için iade talebini ürünün tesliminden itibaren 14 takvim günü içinde açabilir. Süre teslim tarihinden sayılır; iade talebinin açıldığı tarih süreyi başlatmaz, yalnızca hangi prosedür sürümünün uygulanacağını belirler. Takvim günü hesabına hafta sonları da dâhildir. Müşteriye süre bildirilirken başlangıç noktasının teslim tarihi olduğu açıkça belirtilir.
 
 ## İade kargosu {#kargo}
 
 İade kargosunun bedelini müşteri öder.
-
-## İki tarihin farkı {#tarihler}
-
-İade süresi ürünün teslim tarihinden itibaren sayılır; iade talebinin açıldığı tarih bu süreyi başlatmaz. Talebin açıldığı tarih ise yalnızca hangi prosedür sürümünün uygulanacağını belirler. Takvim günü hesabına hafta sonları da dâhildir. Müşteriye süre bildirirken başlangıç noktasının teslim tarihi olduğunu açıkça belirtin.

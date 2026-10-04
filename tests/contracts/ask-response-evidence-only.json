@@ -19,7 +19,7 @@
       "version": "2.0",
       "section_id": "sure",
       "heading_path": ["MH-10 İade Prosedürü", "İade süresi"],
-      "quote": "İade talebi, ürünün tesliminden itibaren 30 takvim günü içinde açılabilir.",
+      "quote": "Türkiye'deki kurumsal (B2B) müşteriler, MH-10 temsilci kulaklıkları için iade talebini ürünün tesliminden itibaren 30 takvim günü içinde açabilir. Süre teslim tarihinden sayılır; iade talebinin açıldığı tarih süreyi başlatmaz, yalnızca hangi prosedür sürümünün uygulanacağını belirler. Takvim günü hesabına hafta sonları da dâhildir. Müşteriye süre bildirilirken başlangıç noktasının teslim tarihi olduğu açıkça belirtilir.",
       "valid_from": "2026-07-01",
       "valid_to": null
     },
@@ -30,7 +30,7 @@
       "version": "1.0",
       "section_id": "bedel",
       "heading_path": ["İade Bedelinin Ödenmesi", "Ödeme süresi"],
-      "quote": "İade bedeli, iadenin kabul edilmesinden sonra 5 iş günü içinde ödenir. Süre, ürünün kargoya verildiği tarihten başlamaz.",
+      "quote": "İade bedeli, iadenin kabul edilmesinden sonra 5 iş günü içinde ödenir. Süre, ürünün kargoya verildiği tarihten başlamaz. İş günü, hafta sonu dışında kalan günlerdir; takvim günüyle karıştırılmamalıdır.",
       "valid_from": "2026-01-01",
       "valid_to": null
     }

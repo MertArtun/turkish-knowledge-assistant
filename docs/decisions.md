@@ -14,14 +14,14 @@
 ### B — Markdown tek kaynak, SQLite türetilmiş indeks
 - **Seçim:** Belgeler Git'te Markdown + YAML frontmatter'dır ve tek doğruluk kaynağıdır; sürüm kararını taşıyan metadata da oradadır. Bölüm embedding'leri bir SQLite dosyasında türetilmiş veri olarak durur; fingerprint uyuşmazsa başlangıçta yeniden üretilir. Ayrıntı: K8–K11 (belge biçimi), K16 (indeks).
 - **Alternatif:** Belgeleri bir veritabanında veya içerik yönetim sisteminde tutmak; ayrı bir vektör veritabanı; her başlangıçta embedding'leri yeniden hesaplamak; pickle veya `.npy` önbelleği.
-- **Neden:** Markdown insan tarafından okunur, değişiklik Git diff'inde görünür ve gözden geçirilebilir. 10 belge ve 32 bölüm için ayrı bir sunucu işletmek gereksizdir; SQLite tek dosyadır, ek süreç istemez ve hangi korpus ve modelle üretildiği fingerprint ile izlenir.
+- **Neden:** Markdown insan tarafından okunur, değişiklik Git diff'inde görünür ve gözden geçirilebilir. 10 belge ve 29 bölüm için ayrı bir sunucu işletmek gereksizdir; SQLite tek dosyadır, ek süreç istemez ve hangi korpus ve modelle üretildiği fingerprint ile izlenir.
 - **Bedel:** Yazar katı bölüm sözdizimini bilmelidir. Çalışırken belge güncellemesi yoktur; yeniden başlatma gerekir. Bu boyutta kalıcı indeks zorunlu da değildir (her başlangıçta yeniden hesap 0,4 sn); fingerprint ve doğrulama kodu ek bakım getirir. Belgeyi yerinde düzenlemek sürüm numarasını değiştirmez (bilinen sınırlar).
 - **Ne zaman değişir:** Belgeleri teknik olmayan kişiler yazıp onaylayacaksa onay akışı olan bir içerik sistemi; korpus binlerce bölüme büyürse artımlı indeks ve yaklaşık arama.
 
 ### C — Yerel çok dilli embedding, sürüm görünümünde tam tarama
 - **Seçim:** `intfloat/multilingual-e5-small` sabit bir commit'te, ONNX Runtime ile CPU'da çalışır; soru yerelde embed edilir. Arama, seçili sürümlerin bölümlerinde normalize vektörlerle tam dot product'tır; `top_k=4`, skor eşiği kapalı. Ayrıntı: K15, K17, K22.
 - **Alternatif:** Sağlayıcının embedding API'si; daha büyük bir model; BM25, hibrit arama veya reranker; yaklaşık arama (ANN).
-- **Neden:** Soru dış sağlayıcıya gitmez ve anahtarsız alıntı modu mümkün olur. 32 bölümde tam tarama milisaniyenin altında, deterministik ve incelenebilir. `TOP_K` hem getirilen hem modele verilen bölüm sayısıdır (varsayılan 4, en fazla 8); bağlamı küçük tutar ve her bölüm 512 token sınırındadır.
+- **Neden:** Soru dış sağlayıcıya gitmez ve anahtarsız alıntı modu mümkün olur. 29 bölümde tam tarama milisaniyenin altında, deterministik ve incelenebilir. `TOP_K` hem getirilen hem modele verilen bölüm sayısıdır (varsayılan 4, en fazla 8); bağlamı küçük tutar ve her bölüm 512 token sınırındadır.
 - **Bedel:** Skorlar dar bir aralıkta toplanıyor, bu yüzden eşik konamadı ve cevapsız sorularda da 4 aday döner. Değerlendirmede üç soruda (E15, E16, E18) beklenen bölüm ilk 4'te değildi. İlk çalıştırma yaklaşık 490 MB indirme ister; pooling ve normalizasyon bizim kodumuzdadır.
 - **Ne zaman değişir:** Ölçülen retrieval hatası bölümleme düzeltmesiyle geliştirme sorularında kapanmazsa BM25/hibrit arama veya reranker, katkısı ölçülerek eklenir. Korpus büyürse yaklaşık arama.
 
@@ -111,7 +111,7 @@
 - **Seçim:**
   - Zorunlu bölümler tek kuralı koşuluyla birlikte taşır. D04 `sure`/`kargo` ve D05 `bedel` metinleri, sözleşme fixture'larındaki alıntılarla birebir aynıdır; bir test bunu denetler.
   - Her belgede yalnızca o konuya özgü açıklayıcı bölümler var (`kullanim`, `sinir`, `iletisim` vb.).
-  - İade belgelerinde `uygulama` bölümü kapsamı ve "sürümü talebin açıldığı tarih belirler" kuralını, `tarihler` bölümü de "süre teslimden sayılır" ayrımını açıklar.
+  - İade belgelerinde süre kuralı, başlangıç noktası (teslim tarihi) ve kapsamı (TR/B2B/MH-10) tek `sure` bölümündedir; `uygulama` bölümü yalnızca hangi sürümün uygulanacağını (iade talebinin açıldığı tarih) açıklar. D05'te iş günü tanımı `bedel` kuralının içindedir; `kullanim` bölümü yalnızca belgenin konusunu söyler.
   - Politika sayıları (14/30 gün, 5 iş günü, 2 çalışma saati, 09.00–18.00) yalnızca zorunlu bölümde geçer.
 - **Alternatif:**
   - Brief'in 120–250 kelime hedefine ulaşmak için yeni kurallar eklemek (iade koşulları, ödeme yöntemi, mesai dışı süreç).
@@ -121,12 +121,13 @@
   - Yeni kural, cevapsız soruların temelini bozar ve doğrulanamayan bilgi ekler.
   - On belgede tekrarlanan kapsam bölümü, "Almanya'da da 30 gün mü?" gibi sorularda top-4'ü birbirine benzeyen kapsam bölümleriyle doldurup `D04#sure`'u dışarı itebilir.
   - Sayının tek bölümde durması, beklenen kaynağı (`D04#sure`) belirsizleştirmez.
-  - Fixture'lar iki dilin ortak sözleşme örneği olduğu için korpusa göre değiştirilmedi; korpus metni onlarla aynı yazıldı.
+  - Fixture'lar iki dilin ortak sözleşme örneğidir ve alıntıları korpusla birebir aynı olmak zorundadır; bölümleme değişikliğinde alıntılar korpusun yeni metniyle güncellendi (bir test denetler).
 - **Bedel:**
-  - Belgeler bölüm başlıkları dâhil 83–128 kelimedir; 10 belgeden 9'u 120'nin altında.
-  - Açıklayıcı bölümler ek chunk'tır ve aramada zorunlu bölümün önüne geçebilir. Değerlendirmede üç soruda beklenen bölüm ilk 4'te değildi (E15, E16, E18); nedeni incelenecek.
+  - Belgeler bölüm başlıkları dâhil 50–122 kelimedir; 10 belgeden 8'i 120'nin altında, D05 50 kelimedir. Uzunluk için yeni kural eklenmedi.
+  - Açıklayıcı bölümler ek chunk'tır ve aramada zorunlu bölümün önüne geçebilir.
   - Belge metnindeki tarih ifadeleri ("1 Temmuz 2026 ve sonrasında açılan talepler") metadata ile otomatik karşılaştırılmaz.
-- **Ne zaman değişir:** Değerlendirmede üç soruda (E15, E16, E18) beklenen bölüm ilk 4'te değildi; kök neden incelemesi bekliyor. Bölümleme değiştirilirse etkisi önce geliştirme sorularında ölçülür ve kaydedilir.
+- **Değişiklik (2026-10-04):** İlk değerlendirmede üç soruda (E15, E16, E18) beklenen `sure` bölümü ilk 4'te değildi. D03/D04'te ayrı duran `tarihler` bölümü `sure` ile, D05'te `is-gunu` bölümü `bedel` ile birleştirildi; D05#kullanim'deki, belgenin iade süresini ve kargoyu anlatmadığını söyleyen yönlendirme cümlesi çıkarıldı. Bölüm sayısı 32'den 29'a indi. Etki önce 9 geliştirme sorusunda ölçüldü (K17), ardından değerlendirme yeniden koşuldu.
+- **Ne zaman değişir:** Yeni ölçüm beklenen bölümün yine ilk k dışında kaldığını gösterirse önce aynı yöntemle (kuralı tek bölümde tutmak, yönlendirme metnini azaltmak) devam edilir; bu yetmezse K17'deki alternatifler ölçülerek denenir.
 
 ### K12 — Sürüm çakışması: yüklemede ret, seçimde ayrıca koruma
 - **Seçim:** Onaylı sürümlerin tarih çakışması `load_corpus` içinde reddedilir; asıl kontrol budur. `select_versions` ise bir tarihte birden çok geçerli sürüm görürse seçim yapmaz, `CorpusError` verir.
@@ -199,9 +200,9 @@
   - Pickle keyfî kod çalıştırabilir. Float32 bayt ve boyut kontrolü yalnızca sayı okur.
   - İndeks Markdown'dan her zaman yeniden üretilebilir. Bu yüzden bozuk bir dosyada başlangıcı durdurmak yerine yeniden üretmek ve nedenini loglamak yeterli. Bozuk dosya sessizce kullanılmaz.
 - **Bedel:**
-  - Bu korpus için kalıcı indeks zorunlu değil. 32 bölümün embedding'i geliştirme makinesinde (Apple Silicon, CPU) 0,42 sn sürüyor; her başlangıçta yeniden hesaplamak da yeterli olurdu. Buna karşılık yaklaşık 150 satır kod ve testleri var.
+  - Bu korpus için kalıcı indeks zorunlu değil. Bölümlerin embedding'i geliştirme makinesinde (Apple Silicon, CPU) 32 bölümle ölçüldüğünde 0,42 sn sürdü; her başlangıçta yeniden hesaplamak da yeterli olurdu. Buna karşılık yaklaşık 150 satır kod ve testleri var.
   - `INDEX_FORMAT_VERSION` elle artırılmalıdır. Önek veya başlık yolu biçimi değişirse fingerprint bunu kendiliğinden yakalar, çünkü girdi metni fingerprint'e dâhil. Pooling kodu değişip sürüm artırılmazsa eski vektörler kullanılmaya devam eder.
-  - Metadata fingerprint'e dâhil olduğu için yalnızca `valid_to` değişse bile tüm embedding'ler yeniden hesaplanır. 32 bölümde bu önemsizdir.
+  - Metadata fingerprint'e dâhil olduğu için yalnızca `valid_to` değişse bile tüm embedding'ler yeniden hesaplanır. Bu korpus boyutunda bu önemsizdir.
 - **Ne zaman değişir:** Korpus binlerce bölüme büyürse, bölüm hash'ine göre artımlı güncelleme ve yaklaşık arama (ANN) düşünülür.
 
 ### K17 — Arama: önce sürüm ve kapsam görünümü, sonra tam dot product; skor eşiği kapalı
@@ -212,7 +213,7 @@
 - **Alternatif:** Tüm korpusta top-k alıp sonra filtrelemek; BM25, hibrit arama veya reranker; sabit bir eşik (ör. 0,80).
 - **Neden:**
   - Sonradan filtrelemede süresi dolmuş bir sürüm daha yüksek skor alırsa top-k'yı doldurur ve geçerli bölümü dışarı iter. Testte `top_k=1` iken D03 en yakın bölüm olsa da D04 dönüyor; sonradan filtreleme burada boş sonuç verirdi.
-  - 32 bölümde tam tarama milisaniyenin altında sürer ve incelemesi kolaydır.
+  - 29 bölümde tam tarama milisaniyenin altında sürer ve incelemesi kolaydır.
 - **Eşik ölçümü:**
   - 4 geliştirme sorusu kullanıldı (`eval/dev_questions.jsonl`); 18 değerlendirme sorusu bu karar için kullanılmadı.
   - Komut: `uv run python measure_retrieval.py` (`src/rag_service` içinden). Model `intfloat/multilingual-e5-small@614241f…`, `top_k=4`.
@@ -227,9 +228,24 @@
   - Beklenen üç bölümün üçü de ilk 4 içinde.
   - Cevapsız sorunun en yüksek skoru (0,8610), cevaplanabilir bir sorunun beklenen bölümünün skorundan (DEV03: 0,8593) daha yüksek. İlk 4'teki tüm skorlar 0,82–0,91 arasında sıkışık.
   - DEV04'ü eleyecek bir eşik, DEV03'ün doğru bölümünü de eler. Bu nedenle eşik kapalı kalır.
+- **Bölümleme ölçümü (K11 değişikliği):** Geliştirme setine eval sorularından farklı ifadelerle 5 soru eklendi (DEV05–DEV09: tarihsel süre, "iade" kelimesi geçmeyen süre sorusu, iki kaynaklı soru, para iadesi). Aynı komutla değişiklikten önce ve sonra:
+
+  | Soru | Beklenen | Önce (sıra, skor) | Sonra (sıra, skor) | Sonra 1. sonuç |
+  |---|---|---|---|---|
+  | DEV01 | `D10#paylasim` | 3, 0,8686 | 3, 0,8686 | `D10#musteri-istegi` (0,8817) |
+  | DEV02 | `D09#eposta` | 1, 0,9130 | 1, 0,9130 | `D09#eposta` (0,9130) |
+  | DEV03 | `D03#kargo` | 2, 0,8593 | 1, 0,8593 | `D03#kargo` (0,8593) |
+  | DEV04 | — | — | — | `D01#kullanim` (0,8610) |
+  | DEV05 | `D03#sure` | 1, 0,8626 | 1, 0,8701 | `D03#sure` (0,8701) |
+  | DEV06 | `D04#sure`, `D05#bedel` | 3, 0,8511; 1, 0,8911 | 2, 0,8834; 1, 0,8940 | `D05#bedel` (0,8940) |
+  | DEV07 | `D04#sure` | 1, 0,8873 | 1, 0,8826 | `D04#sure` (0,8826) |
+  | DEV08 | `D03#sure` | 1, 0,8865 | 1, 0,8907 | `D03#sure` (0,8907) |
+  | DEV09 | `D05#bedel` | 1, 0,8745 | 1, 0,8741 | `D05#bedel` (0,8741) |
+
+  - Hiçbir soruda beklenen bölümün sırası düşmedi; DEV03 ve DEV06'da yükseldi. Geliştirme setinde önce de sonra da beklenen bölümlerin tamamı ilk 4'teydi; asıl etki değerlendirme koşusunda ölçülür. Eşik kararı değişmedi: cevapsız DEV04'ün en yüksek skoru (0,8610) hâlâ cevaplanabilir soruların skor aralığında.
 - **Bedel:**
   - Eşik kapalı olduğu için arama cevapsız sorularda da 4 aday döndürür. Konuya yakın ama cevapsız soruların reddi, üretim aşamasındaki kanıt yeterliliği kontrolüne dayanır. Alıntı modunda bu adaylar cevap olarak değil, aday olarak sunulur.
-  - Açıklayıcı bölümler (`kullanim`, `musteri-istegi`) zorunlu bölümlerle aynı ilk 4'ü paylaşıyor. DEV01'de beklenen bölüm 3. sırada. DEV03'te 1. sırada `D05#kullanim` var; bu bölüm iade kargosunun kendi konusu olmadığını söylüyor.
+  - Açıklayıcı bölümler (`kullanim`, `musteri-istegi`) zorunlu bölümlerle aynı ilk 4'ü paylaşıyor. DEV01'de beklenen bölüm 3. sırada. Bölümleme değişikliğinden önce DEV03'te 1. sırada, iade kargosunun kendi konusu olmadığını söyleyen `D05#kullanim` vardı; bu cümle çıkarıldıktan sonra beklenen bölüm 1. sırada.
 - **Ne zaman değişir:**
   - Geliştirme veya değerlendirme ölçümü beklenen bölümün ilk k dışında kaldığını gösterirse önce bölümleme ve girdi düzeltilir (ör. açıklayıcı bölümü zorunlu bölümle birleştirmek). Ölçüm ve değişiklik kaydedilir.
   - Eşik ancak cevaplanabilir ve cevapsız soruları ayıran, ölçülmüş bir değer bulunursa açılır.
@@ -305,7 +321,8 @@
 
 ### K24 — Modele giden veri: yalnızca JSON veri, sürümlü prompt dosyası
 - **Seçim:**
-  - Sistem talimatı ayrı dosyadadır: `app/prompts/answer.txt`. Sürümü `PROMPT_VERSION` (`answer-v1`); dosyanın SHA-256 değeri readiness'ta (`prompt_version`, `prompt_hash`) ve üretim loglarında görünür. Bir test her sürümün hash'ini sabitler; prompt değişince sürüm de değişmek zorundadır. Prompt'ta hiç rakam yoktur (bir test denetler), politika sayıları yalnızca korpusta durur.
+  - Sistem talimatı ayrı dosyadadır: `app/prompts/answer.txt`. Sürümü `PROMPT_VERSION` (`answer-v2`); dosyanın SHA-256 değeri readiness'ta (`prompt_version`, `prompt_hash`) ve üretim loglarında görünür. Bir test her sürümün hash'ini sabitler; prompt değişince sürüm de değişmek zorundadır. Prompt'ta hiç rakam yoktur (bir test denetler), politika sayıları yalnızca korpusta durur.
+  - `answer-v2` (2026-10-04): Canlı denemelerde, yalnızca Almanya'yı soran bir soruda Türkiye kuralının kapsamı söylenmeden claim olarak eklendiği ve bir cevabın eksik konu olmadan `partial` döndüğü (sunucu bunu 502 ile reddetti) görüldü. Prompt'a üç kural eklendi: soru yalnızca kapsam dışını soruyorsa claim yok, `insufficient_evidence`/`unsupported_scope`; kapsam içi kural yazılırken kapsamı claim cümlesinde söylenir; `partial` yalnızca hem claim hem eksik konu varken kullanılır ve sorulmayan kural claim olarak eklenmez. Ülke adına özel kod veya yönlendirici eklenmedi; etkisi yalnızca canlı değerlendirmede görülür.
   - Kullanıcı mesajı tek bir JSON nesnesidir: etkin tarih, etkin kapsam, soru ve getirilen `TOP_K` bölüm (`id`, `heading_path`, `text`). Eski sürümler zaten sürüm görünümünde elendiği için modele gitmez.
 - **Alternatif:** Soruyu ve bölümleri XML benzeri etiketlerle düz metne gömmek; prompt'u kodda sabit metin olarak tutmak; tüm top-k'yı göndermek.
 - **Neden:**
@@ -429,7 +446,7 @@ Kök neden analizi ve insan incelemesi henüz yapılmadı; her sorunun `human_re
 - **Embedding revision.** `EMBEDDING_REVISION` yalnızca tam commit hash'i kabul eder; boşsa sabitlenmiş commit kullanılır. `EMBEDDING_MODEL` revision'sız değiştirilirse aynı commit o repoda bulunmaz ve başlangıç hata verir. Başka bir revision için model testleri ve `measure_retrieval.py` yeniden çalıştırılmalıdır.
 - **Soru uzunluğu.** Sorgu da 512 token sınırına tabidir. Sınırı aşan soru kesilmez, 400 `invalid_request` olur. 2.000 karakterlik sınır bunu garanti etmez: normal Türkçe metinde 2.000 karakter yaklaşık 470 token tutarken 600 emoji sınırı aşıyor (gerçek tokenizer ile ölçüldü).
 - **Skorların taşınabilirliği.** Skorlar farklı CPU mimarilerinde son basamaklarda (yaklaşık 1e-6) farklı çıkabilir. Eşit skorda `chunk_id` sıralaması yalnızca birebir eşit skorlar için devreye girer.
-- **Küçük ölçüm.** Eşik kararı 4 geliştirme sorusuna dayanır. 18 soruluk değerlendirme de aynı kurgu korpus için yazılmış küçük bir Türkçe regresyon setidir; genellenebilir bir doğruluk oranı vermez.
+- **Küçük ölçüm.** Eşik ve bölümleme kararları 9 geliştirme sorusuna dayanır. 18 soruluk değerlendirme de aynı kurgu korpus için yazılmış küçük bir Türkçe regresyon setidir; genellenebilir bir doğruluk oranı vermez.
 - **Beklenen bölüm her zaman ilk 4'te değil.** Değerlendirmede 15 cevaplanabilir sorunun 3'ünde (E15, E16, E18) beklenen `sure` bölümü ilk 4'te yoktu. K17'de öngörülen risk bu; kök neden incelemesi ve olası bölümleme düzeltmesi bekliyor. Düzeltme yapılırsa önce geliştirme sorularıyla ölçülür.
 - **Canlı üretim tek bir 18 soruluk koşuyla değerlendirildi.** Her üretken istek ücretli bir model çağrısıdır; bu koşuda üretim 1,3–2,8 sn sürdü. Model çıktısı deterministik değildir; aynı koşu tekrarlansa bazı durumlar değişebilir ve tek koşu bunun ölçüsünü vermez. Sonuçlara insan incelemesi henüz yapılmadı (`pending`). Eval'dan önceki deneme çağrılarından ikisi, OpenRouter'da etkin olan sıfır veri saklama (ZDR) kısıtı OpenAI uç noktasını dışladığı için 404 aldı; servis bunu doğru biçimde 503 `provider_unavailable` olarak döndü, "belgede yok" saymadı.
 - **Model sürümü logda takma adla görünür.** OpenRouter yanıtta modeli `openai/gpt-6-luna` olarak bildiriyor, tarihli slug'ı değil. Hangi snapshot'ın kullanıldığı ancak OpenRouter'ın public models API'sinden (o gün `openai/gpt-6-luna-20260922`) ayrıca kaydedilebilir.

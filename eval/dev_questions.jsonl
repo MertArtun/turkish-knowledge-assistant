@@ -2,3 +2,8 @@
 {"id": "DEV02", "category": "normal", "request": {"question": "Parola sıfırlama bağlantısı görüşmede söylenen başka bir e-posta adresine gönderilebilir mi?", "as_of": "2026-10-04"}, "expected_source_ids": ["D09#eposta"]}
 {"id": "DEV03", "category": "version", "request": {"question": "Şubat ayında açılan bir iade talebinde iade kargosunun bedelini kim ödüyordu?", "as_of": "2026-02-16"}, "expected_source_ids": ["D03#kargo"]}
 {"id": "DEV04", "category": "unanswerable", "request": {"question": "MH-10 kulaklığın şarjı tam doluyken kaç saat kullanılabilir?", "as_of": "2026-10-04"}, "expected_source_ids": []}
+{"id": "DEV05", "category": "historical_version", "request": {"question": "Mayıs 2026'da açılan bir iade talebinde müşterinin teslimden sonra kaç günü vardı?", "as_of": "2026-05-20"}, "expected_source_ids": ["D03#sure"]}
+{"id": "DEV06", "category": "multi_source", "request": {"question": "Kulaklığı geri göndermek için ne kadar sürem var ve iade kabul edilince ödeme kaç günde yapılır?", "as_of": "2026-10-04"}, "expected_source_ids": ["D04#sure", "D05#bedel"]}
+{"id": "DEV07", "category": "normal", "request": {"question": "Teslim aldığım MH-10'u kaç gün içinde geri gönderebilirim?", "as_of": "2026-10-04"}, "expected_source_ids": ["D04#sure"]}
+{"id": "DEV08", "category": "historical_version", "request": {"question": "Mart 2026'da teslim edilen bir ürün için iade talebi açma süresi kaç gündü?", "as_of": "2026-03-15"}, "expected_source_ids": ["D03#sure"]}
+{"id": "DEV09", "category": "normal", "request": {"question": "İade ettiğim ürünün parası hesabıma ne zaman geçer?", "as_of": "2026-10-04"}, "expected_source_ids": ["D05#bedel"]}

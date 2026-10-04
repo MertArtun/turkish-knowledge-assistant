@@ -20,11 +20,11 @@ Kurgu bir şirketin destek çalışanına, onaylı bilgi belgelerine dayanarak T
 
 İşveren .NET ve FastAPI'yi **önermiştir**; ikisi de zorunlu değildir. Arayüz ve çok ajanlı yapı istenmemiştir.
 
-**Bizim tercihlerimiz (zorunlu değil):** .NET + FastAPI iki servis; 18 soruluk eval ve 4 geliştirme sorusu; alıntı modu (`evidence_only`); readiness/loglama/timeout gibi işletim ayrıntıları; Docker Compose; `retrieved_chunk_ids` ile dış API üzerinden retrieval ölçümü.
+**Bizim tercihlerimiz (zorunlu değil):** .NET + FastAPI iki servis; 18 soruluk eval ve 9 geliştirme sorusu; alıntı modu (`evidence_only`); readiness/loglama/timeout gibi işletim ayrıntıları; Docker Compose; `retrieved_chunk_ids` ile dış API üzerinden retrieval ölçümü.
 
 ## 2. Korpus
 
-Şirket: **Yardım bende Destek Teknolojileri** (tamamen hayalî). Tüm süreler ve koşullar demo kurgusudur; her dosyanın frontmatter'ı `# DEMO KURGUSU` YAML yorumuyla başlar. Her belgenin kapsamı `country=TR`, `customer_type=B2B`, `product=MH-10`. Belgeler kısadır; uzunluk için yeni iş kuralı eklenmez. Zorunlu bölümlerin yanında yalnızca konuyu açıklayan bölümler vardır (ör. `kullanim`; iade belgelerinde `uygulama` ve `tarihler`).
+Şirket: **Yardım bende Destek Teknolojileri** (tamamen hayalî). Tüm süreler ve koşullar demo kurgusudur; her dosyanın frontmatter'ı `# DEMO KURGUSU` YAML yorumuyla başlar. Her belgenin kapsamı `country=TR`, `customer_type=B2B`, `product=MH-10`. Belgeler kısadır; uzunluk için yeni iş kuralı eklenmez. Zorunlu bölümlerin yanında yalnızca konuyu açıklayan bölümler vardır (ör. `kullanim`; iade belgelerinde `uygulama`). Bir kuralın sayısı, başlangıç noktası ve kapsamı aynı bölümde durur.
 
 | ID | Dosya | procedure_id | Zorunlu bölümler (section_id: içerik) | Sürüm / geçerlilik |
 |---|---|---|---|---|
@@ -281,7 +281,7 @@ Uygulama: `eval/run_eval.py` (yalnızca Python standart kütüphanesi; servis ko
 - `expected_versions`: `{procedure_id: {selected, excluded: {doc_id: reason}}}`; yalnızca sürüm kararının ölçüldüğü sorularda dolu.
 - `revision`, `revisions` (isteğe bağlı): soru veya rubrik değiştirilirse `revision` artar, önceki metin ve değişikliğin nedeni `revisions` listesinde kalır; eski koşuların sonuçları eski metnin sonucu olarak okunur. Şu an yalnızca E15 sürüm 2'dedir: ilk metin konusunu (iade) söylemiyordu.
 
-Ayrıca 4 geliştirme sorusu `eval/dev_questions.jsonl` içindedir (`id`, `category`, `request`, `expected_source_ids`); eşik ve bölümleme kararları önce onlarda denenir (`src/rag_service/measure_retrieval.py`).
+Ayrıca 9 geliştirme sorusu `eval/dev_questions.jsonl` içindedir (`id`, `category`, `request`, `expected_source_ids`); eşik ve bölümleme kararları önce onlarda denenir (`src/rag_service/measure_retrieval.py`).
 
 **Koşu.**
 - Runner .NET'in `POST /api/ask` ucunu çağırır. İstek başına timeout 60 sn'dir, .NET'in 45 sn'sinden uzun; böylece yavaş bir cevap istemci timeout'u değil API'nin kendi 504'ü olarak kaydedilir. Her soruya `X-Request-ID: eval.<run_id>.<id>` gönderilir; servis loglarındaki satırlar bu ID ile bulunur.
