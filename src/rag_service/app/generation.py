@@ -9,7 +9,7 @@ final answer, titles, versions and quotes itself; the model never produces them.
 import hashlib
 import json
 import re
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -26,7 +26,7 @@ from app.settings import Settings
 
 PROMPT_PATH = Path(__file__).parent / "prompts" / "answer.txt"
 # Bump together with the prompt text; tests pin the hash of each version.
-PROMPT_VERSION = "answer-v3"
+PROMPT_VERSION = "answer-v5"
 # Reasoning tokens count against this budget too; the effort is kept low (see generate()).
 MAX_OUTPUT_TOKENS = 1000
 OPENROUTER_HOST = "openrouter.ai"
@@ -113,16 +113,17 @@ class Generator(Protocol):
     async def generate(self, instructions: str, user_input: str) -> Generation: ...
 
 
-def render_input(question: str, as_of: date, scope: Scope, chunks: Sequence[Chunk]) -> str:
+def render_input(question: str, as_of: date, scope: Scope, sources: Mapping[str, Chunk]) -> str:
     """The user message: JSON data only. JSON string escaping keeps a question or a document from
-    closing its field and passing itself off as instructions or another source."""
+    closing its field and passing itself off as instructions or another source. Each section is
+    shown under its request label, not its section ID."""
     data = {
         "effective_as_of": as_of.isoformat(),
         "effective_scope": scope.model_dump(),
         "question": question,
         "sources": [
-            {"id": chunk.chunk_id, "heading_path": list(chunk.heading_path), "text": chunk.content}
-            for chunk in chunks
+            {"id": label, "heading_path": list(chunk.heading_path), "text": chunk.content}
+            for label, chunk in sources.items()
         ],
     }
     return json.dumps(data, ensure_ascii=False, indent=2)

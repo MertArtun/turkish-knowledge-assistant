@@ -178,8 +178,10 @@ class Assistant:
     ) -> AskResponse:
         # Exactly the retrieved sections reach the model: current versions, in this scope, TOP_K
         # of them. One budget, so measuring retrieval also measures what the model was given.
-        provided = {r.chunk.chunk_id: r.chunk for r in results}
-        user_input = render_input(question, as_of, scope, list(provided.values()))
+        # The model sees request labels (S1, S2, …) instead of section IDs: two IDs it was given
+        # cannot be blended into a third that looks real (seen live: "D10#dogruluk").
+        provided = {f"S{number}": r.chunk for number, r in enumerate(results, start=1)}
+        user_input = render_input(question, as_of, scope, provided)
         prompt_id = f"{self.prompt.version}@{self.prompt.sha256[:12]}"
         generation_started = time.perf_counter()
         try:
@@ -205,7 +207,15 @@ class Assistant:
         generate_ms = _milliseconds_since(generation_started)
 
         answer = generation.answer
-        cited = list(dict.fromkeys(i for claim in answer.claims for i in claim.source_chunk_ids))
+        claims = [
+            Claim(
+                text=claim.text,
+                source_chunk_ids=[provided[label].chunk_id for label in claim.source_chunk_ids],
+            )
+            for claim in answer.claims
+        ]
+        cited = list(dict.fromkeys(i for claim in claims for i in claim.source_chunk_ids))
+        chunks = {chunk.chunk_id: chunk for chunk in provided.values()}
         self._log(request_id, "generative", answer.status, results, started, embed_ms, search_ms)
         logger.info(
             "generation",
@@ -233,9 +243,9 @@ class Assistant:
             effective_as_of=as_of,
             effective_scope=scope,
             answer=compose_answer(answer),
-            claims=[Claim(text=c.text, source_chunk_ids=c.source_chunk_ids) for c in answer.claims],
+            claims=claims,
             # Title, version, dates and the verbatim quote come from the corpus, never the model.
-            sources=[self._source_section(provided[chunk_id]) for chunk_id in cited],
+            sources=[self._source_section(chunks[chunk_id]) for chunk_id in cited],
             evidence=[],
             missing_topics=answer.missing_topics,
             reason_code=answer.reason_code,

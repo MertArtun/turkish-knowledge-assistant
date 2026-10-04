@@ -16,7 +16,7 @@ supersedes: null
 
 ## Uygulanacak sürüm {#uygulama}
 
-Hangi prosedür sürümünün uygulanacağını iade talebinin açıldığı tarih belirler. Bu sürüm (1.0), 1 Ocak 2026 ve sonrasında açılan iade talepleri için geçerlidir.
+Hangi prosedür sürümünün uygulanacağını iade talebinin açıldığı tarih belirler. Bu sürüm (1.0), 1 Ocak 2026 ve sonrasında, 1 Temmuz 2026'dan önce açılan iade talepleri için geçerlidir.
 
 ## İade süresi {#sure}
 

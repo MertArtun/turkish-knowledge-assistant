@@ -47,13 +47,13 @@ def events(caplog, message: str) -> list[dict]:
 SCENARIOS = {
     "evidence_only": ({}, {"question": QUESTION}),
     "generative_answered": (
-        {"generator": FakeGenerator(model_answer("answered", [(CLAIM, ["D04#kargo"])]))},
+        {"generator": FakeGenerator(model_answer("answered", [(CLAIM, ["S1"])]))},
         {"question": QUESTION, "mode": "generative"},
     ),
     "generative_partial": (
         {
             "generator": FakeGenerator(
-                model_answer("partial", [(CLAIM, ["D04#kargo"])], missing_topics=[MISSING_TOPIC])
+                model_answer("partial", [(CLAIM, ["S1"])], missing_topics=[MISSING_TOPIC])
             )
         },
         {"question": QUESTION, "mode": "generative"},
@@ -123,7 +123,7 @@ def test_answer_line_names_outcome_sections_versions_and_timings(caplog):
 
 def test_generation_line_names_model_prompt_tokens_and_timing(caplog):
     caplog.set_level(logging.INFO)
-    generator = FakeGenerator(model_answer("answered", [(CLAIM, ["D04#kargo"])]))
+    generator = FakeGenerator(model_answer("answered", [(CLAIM, ["S1"])]))
     client = TestClient(create_app(make_assistant(SCORES, generator=generator)))
 
     post(client, {"question": QUESTION, "mode": "generative"}, request_id="req-2")

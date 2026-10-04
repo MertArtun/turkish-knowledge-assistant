@@ -143,7 +143,7 @@ def test_unexpected_error_is_500_internal_error_without_its_text(monkeypatch):
 
 def test_generative_answer_is_200_with_the_contract_body():
     claim = "Şirket iade etiketi sağlar ve bu etiketle yapılan gönderimin bedelini karşılar."
-    generator = FakeGenerator(model_answer("answered", [(claim, ["D04#kargo"])]))
+    generator = FakeGenerator(model_answer("answered", [(claim, ["S1"])]))
     client = TestClient(create_app(make_assistant({"D04#kargo": 0.9}, generator=generator)))
 
     response = post(client, {"question": QUESTION, "mode": "generative"}, request_id="req-gen")

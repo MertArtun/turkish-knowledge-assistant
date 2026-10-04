@@ -260,6 +260,8 @@ def test_evidence_mode_makes_no_network_call(monkeypatch):
 # --- generative ---------------------------------------------------------------------------------
 
 RETURNS_SCORES = {"D04#kargo": 0.9, "D05#kullanim": 0.8, "D04#sure": 0.7, "D05#bedel": 0.6}
+# The model cites the request's source labels, numbered in retrieval order: with RETURNS_SCORES
+# S1 is D04#kargo, S3 D04#sure, S4 D05#bedel (and S5 a fifth section when TOP_K=5).
 
 
 def source(chunk_id: str) -> SourceSection:
@@ -288,7 +290,7 @@ def ask_generative(answer, scores=RETURNS_SCORES, settings=None, **request):
 def test_generative_answer_is_built_from_validated_claims_with_server_quotes():
     claim = "Şirket iade etiketi sağlar ve bu etiketle yapılan gönderimin bedelini karşılar."
 
-    response, _ = ask_generative(model_answer("answered", [(claim, ["D04#kargo"])]))
+    response, _ = ask_generative(model_answer("answered", [(claim, ["S1"])]))
 
     assert (response.status, response.mode) == ("answered", "generative")
     assert response.answer == claim
@@ -307,17 +309,18 @@ def test_sources_are_only_the_cited_sections_in_first_citation_order():
     answer = model_answer(
         "answered",
         [
-            ("İade talebi teslimden itibaren belirli bir süre içinde açılır.", ["D04#sure"]),
-            ("Bedel iadenin kabulünden sonra ödenir.", ["D05#bedel", "D04#sure"]),
+            ("Bedel iadenin kabulünden sonra ödenir.", ["S4", "S3"]),
+            ("İade talebi teslimden itibaren belirli bir süre içinde açılır.", ["S3"]),
         ],
     )
 
     response, _ = ask_generative(answer)
 
-    assert [item.chunk_id for item in response.sources] == ["D04#sure", "D05#bedel"]
+    # First citation order, not retrieval order (D04#sure was retrieved before D05#bedel).
+    assert [item.chunk_id for item in response.sources] == ["D05#bedel", "D04#sure"]
     assert response.answer == (
-        "İade talebi teslimden itibaren belirli bir süre içinde açılır. "
-        "Bedel iadenin kabulünden sonra ödenir."
+        "Bedel iadenin kabulünden sonra ödenir. "
+        "İade talebi teslimden itibaren belirli bir süre içinde açılır."
     )
 
 
@@ -325,7 +328,7 @@ def test_partial_answer_ends_with_the_standard_missing_information_sentence():
     claim = "Türkiye kapsamında iade talebi teslimden itibaren belgede yazan süre içinde açılır."
     answer = model_answer(
         "partial",
-        [(claim, ["D04#sure"])],
+        [(claim, ["S3"])],
         missing_topics=["Almanya'daki müşteriler için iade süresi"],
         reason_code="unsupported_scope",
     )
@@ -374,7 +377,7 @@ def test_model_sees_only_the_question_scope_date_and_every_retrieved_current_sec
         "D08#saatler": 0.5,
         "D09#sifre": 0.4,
     }
-    answer = model_answer("answered", [("Şirket iade etiketi sağlar.", ["D04#kargo"])])
+    answer = model_answer("answered", [("Şirket iade etiketi sağlar.", ["S1"])])
 
     response, generator = ask_generative(
         answer, scores=scores, settings=load_settings({"TOP_K": "6"})
@@ -388,10 +391,13 @@ def test_model_sees_only_the_question_scope_date_and_every_retrieved_current_sec
     assert data["question"] == "İade kargosunu kim ödüyor?"
     assert (data["effective_as_of"], data["effective_scope"]["country"]) == ("2026-10-04", "TR")
     # One context budget: the sections retrieved are exactly the sections the model receives.
-    assert response.retrieved_chunk_ids == [s["id"] for s in data["sources"]]
     assert len(response.retrieved_chunk_ids) == 6
-    for item in data["sources"]:
-        assert item["text"] == CHUNKS[item["id"]].content
+    assert [s["id"] for s in data["sources"]] == ["S1", "S2", "S3", "S4", "S5", "S6"]
+    assert [s["text"] for s in data["sources"]] == [
+        CHUNKS[chunk_id].content for chunk_id in response.retrieved_chunk_ids
+    ]
+    # Two section IDs cannot be blended into a third that looks real (seen live: "D10#dogruluk").
+    assert not any(chunk_id in user_input for chunk_id in CHUNKS)
     for chunk_id, chunk in CHUNKS.items():
         if chunk.doc_id == "D03":
             assert chunk.content not in user_input, chunk_id
@@ -400,25 +406,29 @@ def test_model_sees_only_the_question_scope_date_and_every_retrieved_current_sec
 @pytest.mark.parametrize(
     "answer",
     [
-        model_answer("answered", [("İade süresi belgede yazar.", ["D04#sure", "D99#uydurma"])]),
+        model_answer("answered", [("İade süresi belgede yazar.", ["S3", "D99#uydurma"])]),
         # A real corpus section that was not given to the model for this request.
         model_answer("answered", [("Destek ekibine hafta içi ulaşılır.", ["D08#saatler"])]),
         model_answer("answered", [("Şirket iade etiketi sağlar.", [])]),
-        model_answer("answered", [("   ", ["D04#kargo"])]),
-        model_answer("answered", [("Şirket etiket sağlar.", ["D04#kargo"])], ["garanti"]),
+        model_answer("answered", [("   ", ["S1"])]),
+        model_answer("answered", [("Şirket etiket sağlar.", ["S1"])], ["garanti"]),
         model_answer(
-            "answered", [("Şirket etiket sağlar.", ["D04#kargo"])], reason_code="not_in_documents"
+            "answered", [("Şirket etiket sağlar.", ["S1"])], reason_code="not_in_documents"
         ),
-        model_answer("partial", [("Şirket iade etiketi sağlar.", ["D04#kargo"])]),
+        model_answer("partial", [("Şirket iade etiketi sağlar.", ["S1"])]),
         model_answer("partial", [], ["garanti"], "not_in_documents"),
-        model_answer("partial", [("Şirket etiket sağlar.", ["D04#kargo"])], [" "]),
+        model_answer("partial", [("Şirket etiket sağlar.", ["S1"])], [" "]),
         model_answer(
             "insufficient_evidence",
-            [("Şirket etiket sağlar.", ["D04#kargo"])],
+            [("Şirket etiket sağlar.", ["S1"])],
             ["x"],
             "not_in_documents",
         ),
         model_answer("insufficient_evidence", [], ["garanti"]),
+        # The model is shown labels only; a section ID can only be its own guess, even when that
+        # section was retrieved, and a label beyond the ones given is as unverifiable.
+        model_answer("answered", [("Şirket iade etiketi sağlar.", ["D04#kargo"])]),
+        model_answer("answered", [("Şirket iade etiketi sağlar.", ["S6"])]),
     ],
     ids=[
         "fabricated-id",
@@ -432,6 +442,8 @@ def test_model_sees_only_the_question_scope_date_and_every_retrieved_current_sec
         "blank-missing-topic",
         "insufficient-with-claims",
         "insufficient-without-reason",
+        "section-id-instead-of-label",
+        "label-not-given",
     ],
 )
 def test_unverifiable_model_output_is_rejected_never_cleaned_up(answer):
@@ -461,7 +473,7 @@ def test_model_slower_than_llm_timeout_is_cut_off_as_generation_timeout():
     # The SDK's own timeout applies per connect/read/write phase, so a slowly trickling reply
     # could outlast it; LLM_TIMEOUT_SECONDS must bound the whole call, well inside the .NET API's
     # longer upstream timeout.
-    answer = model_answer("answered", [("x", ["D04#kargo"])])
+    answer = model_answer("answered", [("x", ["S1"])])
     generator = FakeGenerator(answer, delay_seconds=30)
     settings = load_settings({"LLM_TIMEOUT_SECONDS": "0.2"})
     assistant = make_assistant(RETURNS_SCORES, settings=settings, generator=generator)
@@ -475,7 +487,7 @@ def test_model_slower_than_llm_timeout_is_cut_off_as_generation_timeout():
 
 
 def test_evidence_mode_never_calls_the_generator():
-    generator = FakeGenerator(model_answer("answered", [("x", ["D04#kargo"])]))
+    generator = FakeGenerator(model_answer("answered", [("x", ["S1"])]))
 
     response = ask(
         make_assistant(RETURNS_SCORES, generator=generator), question="İade kargosunu kim ödüyor?"
@@ -486,7 +498,7 @@ def test_evidence_mode_never_calls_the_generator():
 
 
 def test_generative_request_for_an_unsupported_scope_never_reaches_the_model():
-    generator = FakeGenerator(model_answer("answered", [("x", ["D04#sure"])]))
+    generator = FakeGenerator(model_answer("answered", [("x", ["S3"])]))
     germany = {"country": "DE", "customer_type": "B2B", "product": "MH-10"}
 
     response = ask(
@@ -544,14 +556,14 @@ def test_injected_instructions_reach_the_model_only_as_data_and_validation_still
     data = json.loads(user_input)
     assert set(data) == {"effective_as_of", "effective_scope", "question", "sources"}
     assert data["question"] == question
-    assert [item["id"] for item in data["sources"]] == ["D01#sure"]
+    assert [item["id"] for item in data["sources"]] == ["S1"]
     assert INJECTION in data["sources"][0]["text"]
 
 
 def test_source_check_is_not_a_meaning_check(tmp_path):
     # Known limit, kept visible on purpose: a wrong claim that cites a provided section passes.
     # Whether a live model resists the injection is not shown by any offline test.
-    obeyed = model_answer("answered", [("İade süresi altmış gündür.", ["D01#sure"])])
+    obeyed = model_answer("answered", [("İade süresi altmış gündür.", ["S1"])])
 
     response = ask(
         injected_assistant(tmp_path, FakeGenerator(obeyed)),
@@ -565,7 +577,7 @@ def test_source_check_is_not_a_meaning_check(tmp_path):
 
 def test_a_section_retrieved_fifth_is_given_to_the_model_and_may_be_cited():
     scores = {**RETURNS_SCORES, "D09#sifre": 0.5}
-    answer = model_answer("answered", [("Parola sıfırlama bağlantısı gönderilir.", ["D09#sifre"])])
+    answer = model_answer("answered", [("Parola sıfırlama bağlantısı gönderilir.", ["S5"])])
 
     response, _ = ask_generative(answer, scores=scores, settings=load_settings({"TOP_K": "5"}))
 
