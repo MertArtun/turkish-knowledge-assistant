@@ -130,7 +130,7 @@ dotnet format --verify-no-changes
 
 ## Değerlendirme
 
-18 soruluk küçük, görülebilir bir regresyon setidir (`eval/questions.jsonl`): normal, sürüm çelişkisi, cevapsız, kısmi, tarihsel sürüm, yanlış ön kabul ve çok kaynaklı sorular. Genellenebilir bir benchmark değildir. İlk koşudan sonra hata ayıklamada da kullanıldığı için son sonuçları bağımsız bir ölçüm değil, regresyon kontrolüdür ([`docs/decisions.md`](docs/decisions.md), K29). Runner (`eval/run_eval.py`) dış .NET API'sini HTTP ile çağırır ve yalnızca Python standart kütüphanesini kullanır (Python 3.12 ve 3.14 ile denendi). Kontrollerin tanımı: [`docs/project-spec.md`](docs/project-spec.md) §7.
+18 soruluk küçük, görülebilir bir regresyon setidir (`eval/questions.jsonl`): normal, sürüm çelişkisi, cevapsız, kısmi, tarihsel sürüm, yanlış ön kabul ve çok kaynaklı sorular. Genellenebilir bir benchmark değildir. İlk koşudan sonra hata ayıklamada da kullanıldığı için son sonuçları bağımsız bir ölçüm değil, regresyon kontrolüdür ([`docs/decisions.md`](docs/decisions.md), K29). Bağımsız ölçüm 26 soruluk holdout setidir (`eval/holdout_questions.jsonl`): son değişiklikten sonra, sistemin cevaplarına bakılmadan yazıldı ve ilk koşudan önce commit edildi. Runner (`eval/run_eval.py`) dış .NET API'sini HTTP ile çağırır ve yalnızca Python standart kütüphanesini kullanır (Python 3.12 ve 3.14 ile denendi). Kontrollerin tanımı: [`docs/project-spec.md`](docs/project-spec.md) §7.
 
 Repo kökünden, stack çalışırken (yukarıdaki `docker compose up --build -d --wait`):
 
@@ -138,6 +138,7 @@ Repo kökünden, stack çalışırken (yukarıdaki `docker compose up --build -d
 python3 -m unittest discover -s eval -v                  # runner'ın kendi testleri; stack gerekmez
 python3 eval/run_eval.py --mode evidence_only            # model çağrısı yok
 python3 eval/run_eval.py --mode generative               # anahtar gerekir; soru başına bir ücretli model çağrısı
+python3 eval/run_eval.py --mode generative --questions eval/holdout_questions.jsonl   # holdout; koşu kimliği -holdout ile biter
 # İsteğe bağlı: koşunun servis log satırları (skorlar, süreler, token sayıları)
 docker compose logs --no-log-prefix rag | grep '"eval\.<run_id>\.' > eval/results/<run_id>/rag-log.jsonl
 ```

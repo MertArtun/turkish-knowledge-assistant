@@ -615,5 +615,49 @@ class QuestionSetTests(PatternGroundingMixin, unittest.TestCase):
         self.assertIn("- Soru sürümü: 2 (önceki sürümler `revisions` alanında)", lines)
 
 
+class HoldoutSetTests(PatternGroundingMixin, unittest.TestCase):
+    """The held-out set: same format, new questions, committed before its first run."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.questions = run_eval.load_questions(run_eval.HOLDOUT_QUESTIONS)
+        cls.sections = run_eval.load_sections(run_eval.KNOWLEDGE_DIR)
+        cls.doc_ids = {record["doc_id"] for record in cls.sections.values()}
+
+    def test_ids_run_from_h01_and_no_question_comes_from_the_tuned_sets(self):
+        tuned = {
+            question["request"]["question"]
+            for path in (run_eval.DEFAULT_QUESTIONS, run_eval.EVAL_DIR / "dev_questions.jsonl")
+            for question in run_eval.load_questions(path)
+        }
+
+        self.assertEqual(
+            [q["id"] for q in self.questions],
+            [f"H{n:02d}" for n in range(1, len(self.questions) + 1)],
+        )
+        for question in self.questions:
+            self.assertNotIn(question["request"]["question"], tuned, question["id"])
+            self.assertEqual(question["request"]["scope"], SCOPE, question["id"])
+            self.assertNotIn("mode", question["request"], "the runner sets the mode per run")
+
+    def test_expectations_are_well_formed_and_cover_the_brief_categories(self):
+        categories = {q["category"] for q in self.questions}
+        self.assertTrue({"normal", "version_conflict", "unanswerable"} <= categories)
+        for question in self.questions:
+            self.assertIn(
+                question["expected_status"], ("answered", "partial", "insufficient_evidence")
+            )
+            self.assertTrue(question["rubric"], question["id"])
+            if question["expected_status"] == "insufficient_evidence":
+                self.assertEqual(question["expected_source_ids"], [], question["id"])
+            for chunk_id in question["expected_source_ids"]:
+                self.assertIn(chunk_id, self.sections)
+            for fact in question["required_facts"] + question["forbidden_facts"]:
+                self.assertTrue(fact["fact"])
+            for decision in question["expected_versions"].values():
+                self.assertIn(decision["selected"], self.doc_ids)
+                self.assertTrue(set(decision["excluded"]) <= self.doc_ids)
+
+
 if __name__ == "__main__":
     unittest.main()

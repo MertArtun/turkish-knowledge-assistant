@@ -285,6 +285,8 @@ Ayrıca 20 geliştirme sorusu `eval/dev_questions.jsonl` içindedir (`id`, `cate
 
 E01–E18 ilk koşudan sonra hata ayıklamada kullanıldı; prompt ve korpus değişikliklerinin bir kısmı bu sorularda görülen hatalardan çıktı. Sonuçları bu yüzden bağımsız bir doğruluk ölçümü değil, regresyon kontrolüdür (`docs/decisions.md`, K29). Değerlendirme setinde her gerekli kalıp beklenen bölümün kendi metnine uyar, her yasak kalıp uymaz (test edilir).
 
+**Holdout seti.** Bağımsız ölçüm `eval/holdout_questions.jsonl`'dir (H01–H26, aynı biçim). Son prompt ve korpus değişikliğinden sonra yazıldı; yazımında prompt, sistemin cevapları ve önceki koşular kullanılmadı; beklentiler iki ayrı gözden geçirmeden geçti ve set ilk koşudan önce commit edildi. Kurallar: holdout sonucuna bakılarak prompt, korpus veya beklenen değer değiştirilmez; değiştirilirse set kullanılmış sayılır, soruları regresyon setine geçer ve yeni bir holdout yazılır. Koşu: `python3 eval/run_eval.py --mode generative --questions eval/holdout_questions.jsonl` (koşu kimliği `-holdout` ile biter). Aynı kalıp testleri bu set için de geçerlidir.
+
 **Koşu.**
 - Runner .NET'in `POST /api/ask` ucunu çağırır. İstek başına timeout 60 sn'dir, .NET'in 45 sn'sinden uzun; böylece yavaş bir cevap istemci timeout'u değil API'nin kendi 504'ü olarak kaydedilir. Her soruya `X-Request-ID: eval.<run_id>.<id>` gönderilir; servis loglarındaki satırlar bu ID ile bulunur.
 - HTTP hataları ve bağlantı hataları da gerçek çıktı olarak kaydedilir; hiçbir soru tekrar denenmez.

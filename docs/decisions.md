@@ -450,7 +450,7 @@
   - Dış API yalnızca ilk k bölümü döndürür. İlk k'nın dışındaki sıra için servis logu veya `measure_retrieval.py` gerekir.
   - Koşu metadata'sı readiness'tan okunur. Sağlayıcı uç noktası (`OPENAI_BASE_URL`) readiness'ta olmadığı için koşu notunda ayrıca yazılır.
   - **18 soru artık bağımsız bir ölçüm değildir.** İlk koşudan sonra başarısız soruların kök nedeni arandı ve prompt ile korpus değişikliklerinin bir kısmı E05, E07, E12, E14, E15 ve E16'da görülen hatalardan çıktı. Değişiklikler önce 20 geliştirme sorusunda ve tekrar denemelerinde ölçüldü, ama son koşulardaki 18/18 yine de bu sorulara göre ayarlanmış bir sistemin regresyon sonucudur; yeni ifadelerde ne kadar doğru olduğunu söylemez.
-- **Ne zaman değişir:** Soru ve kalıp sayısı bakım yükü olacak kadar büyürse insan etiketli bir değerlendirmeye geçilir. Bağımsız bir doğruluk ölçümü gerekirse son değişiklikten sonra, sistemin cevaplarına bakılmadan yazılmış ve ilk koşudan önce commit edilmiş ayrı bir soru seti kullanılır; o setin sonucuna bakılarak sistem değişirse set kullanılmış sayılır. Runner başka bir soru dosyasını `--questions` ile alır ve koşu kimliğine dosyanın adını ekler.
+- **Ne zaman değişir:** Soru ve kalıp sayısı bakım yükü olacak kadar büyürse insan etiketli bir değerlendirmeye geçilir. Bağımsız ölçüm için holdout seti (`eval/holdout_questions.jsonl`, 26 soru) eklendi: son değişiklikten sonra, prompt'a ve sistemin cevaplarına bakılmadan yazıldı, beklentileri iki ayrı gözden geçirmeden geçti ve ilk koşudan önce commit edildi. Sonucuna bakılarak sistem değişirse set kullanılmış sayılır ve yenisi yazılır. Runner başka bir soru dosyasını `--questions` ile alır ve koşu kimliğine dosyanın adını ekler.
 
 ## Değerlendirme bulguları
 

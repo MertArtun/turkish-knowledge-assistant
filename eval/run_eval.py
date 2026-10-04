@@ -33,6 +33,9 @@ from pathlib import Path
 EVAL_DIR = Path(__file__).resolve().parent
 REPO_ROOT = EVAL_DIR.parent
 DEFAULT_QUESTIONS = EVAL_DIR / "questions.jsonl"
+# Written after the last prompt and corpus change, without looking at the system's answers, and
+# committed before its first run; never used to tune anything (docs/project-spec.md §7).
+HOLDOUT_QUESTIONS = EVAL_DIR / "holdout_questions.jsonl"
 RESULTS_DIR = EVAL_DIR / "results"
 KNOWLEDGE_DIR = REPO_ROOT / "data" / "knowledge"
 DEFAULT_API = "http://127.0.0.1:8080"
